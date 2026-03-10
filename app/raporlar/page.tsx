@@ -1,5 +1,6 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+"use client";
+
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type SaleItem = {
@@ -8,23 +9,45 @@ type SaleItem = {
   total_price: number | null;
 };
 
-export default async function RaporlarPage() {
-  const { data: sales } = await supabase
-    .from("sales")
-    .select(
+type Sale = {
+  id: string;
+  total_amount: number | null;
+  payment_status: string | null;
+  created_at: string;
+  sale_items: SaleItem[];
+};
+
+export default function RaporlarPage() {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadReports = async () => {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("sales")
+      .select(
+        `
+        id,
+        total_amount,
+        payment_status,
+        created_at,
+        sale_items (
+          product_name,
+          quantity,
+          total_price
+        )
       `
-      id,
-      total_amount,
-      payment_status,
-      created_at,
-      sale_items (
-        product_name,
-        quantity,
-        total_price
       )
-    `
-    )
-    .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false });
+
+    setSales((data as unknown as Sale[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadReports();
+  }, []);
 
   const allSales = sales || [];
 
@@ -106,6 +129,13 @@ export default async function RaporlarPage() {
               R
             </div>
           </div>
+
+          <button
+            onClick={loadReports}
+            className="w-full mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm font-semibold"
+          >
+            {loading ? "Guncelleniyor..." : "Raporlari Yenile"}
+          </button>
 
           <div className="grid grid-cols-2 gap-3 mt-6">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
