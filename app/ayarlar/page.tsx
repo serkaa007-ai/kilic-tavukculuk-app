@@ -1,302 +1,227 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default function AyarlarPage() {
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState("");
-  const [resetText, setResetText] = useState("");
+type Sale = {
+  id: string;
+  total_amount: number | null;
+  payment_status: string | null;
+  created_at: string;
+};
 
-  const handleDeleteSales = async () => {
-    const ok = window.confirm("Tum satislar ve fis kalemleri silinsin mi?");
-    if (!ok) return;
+export default function Home() {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
+  const loadData = async () => {
     setLoading(true);
-    setMessage("");
 
-    try {
-      const { error: paymentsError } = await supabase
-        .from("payments")
-        .delete()
-        .not("id", "is", null);
+    const { data: salesData } = await supabase
+      .from("sales")
+      .select("id, total_amount, payment_status, created_at")
+      .order("created_at", { ascending: false });
 
-      if (paymentsError) {
-        setMessage("Odemeler silinemedi: " + paymentsError.message);
-        return;
-      }
+    const { count: customersCountData } = await supabase
+      .from("customers")
+      .select("*", { count: "exact", head: true });
 
-      const { error: saleItemsError } = await supabase
-        .from("sale_items")
-        .delete()
-        .not("id", "is", null);
+    const { count: productsCountData } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true });
 
-      if (saleItemsError) {
-        setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
-        return;
-      }
-
-      const { error: salesError } = await supabase
-        .from("sales")
-        .delete()
-        .not("id", "is", null);
-
-      if (salesError) {
-        setMessage("Satislar silinemedi: " + salesError.message);
-        return;
-      }
-
-      setMessage("Satislar ve odemeler temizlendi");
-
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1200);
-    } catch {
-      setMessage("Bir hata olustu");
-    } finally {
-      setLoading(false);
-    }
+    setSales((salesData as Sale[]) || []);
+    setCustomerCount(customersCountData || 0);
+    setProductCount(productsCountData || 0);
+    setLoading(false);
   };
 
-  const handleDeletePayments = async () => {
-    const ok = window.confirm("Tum odemeler silinsin mi?");
-    if (!ok) return;
+  useEffect(() => {
+    loadData();
+  }, []);
 
-    setLoading(true);
-    setMessage("");
+  const totalSales =
+    sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0;
 
-    try {
-      const { error: paymentsError } = await supabase
-        .from("payments")
-        .delete()
-        .not("id", "is", null);
+  const pendingPayments =
+    sales
+      .filter((sale) => sale.payment_status === "Bekliyor")
+      .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0;
 
-      if (paymentsError) {
-        setMessage("Odemeler silinemedi: " + paymentsError.message);
-        return;
-      }
-
-      setMessage("Odeme kayitlari temizlendi");
-    } catch {
-      setMessage("Bir hata olustu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLoadDemoProducts = async () => {
-    const ok = window.confirm(
-      "Demo urun listesi yuklensin mi? Mevcut urunler silinir."
-    );
-    if (!ok) return;
-
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const { error: deleteProductsError } = await supabase
-        .from("products")
-        .delete()
-        .not("id", "is", null);
-
-      if (deleteProductsError) {
-        setMessage("Mevcut urunler silinemedi: " + deleteProductsError.message);
-        return;
-      }
-
-      const demoProducts = [
-        { name: "Posetli pilic", price: 0, unit: "kg", active: true },
-        { name: "Acik pilic", price: 0, unit: "kg", active: true },
-        { name: "Acik 1500", price: 0, unit: "kg", active: true },
-        { name: "Acik 1300-1400", price: 0, unit: "kg", active: true },
-        { name: "Dokme Ciger", price: 0, unit: "kg", active: true },
-        { name: "Dokme Taslik", price: 0, unit: "kg", active: true },
-        { name: "Catal but", price: 0, unit: "kg", active: true },
-        { name: "Spesiel but", price: 0, unit: "kg", active: true },
-        { name: "Sarma", price: 0, unit: "kg", active: true },
-        { name: "Baget", price: 0, unit: "kg", active: true },
-        { name: "Kemiksiz but", price: 0, unit: "kg", active: true },
-        { name: "Izgara tava", price: 0, unit: "kg", active: true },
-        { name: "Derili bonfile", price: 0, unit: "kg", active: true },
-        { name: "Derisiz bonfile", price: 0, unit: "kg", active: true },
-        { name: "Muz gogus", price: 0, unit: "kg", active: true },
-        { name: "Tum gogus", price: 0, unit: "kg", active: true },
-        { name: "Kelebek", price: 0, unit: "kg", active: true },
-        { name: "Tum kanat", price: 0, unit: "kg", active: true },
-        { name: "Izgara kanat", price: 0, unit: "kg", active: true },
-        { name: "Yaprak kanat", price: 0, unit: "kg", active: true },
-        { name: "Ucsuz kanat", price: 0, unit: "kg", active: true },
-        { name: "Kafes", price: 0, unit: "kg", active: true },
-        { name: "Incik", price: 0, unit: "kg", active: true },
-        { name: "Parmak Bonfile", price: 0, unit: "kg", active: true },
-        { name: "Savurma", price: 0, unit: "kg", active: true },
-      ];
-
-      const { error: insertProductsError } = await supabase
-        .from("products")
-        .insert(demoProducts);
-
-      if (insertProductsError) {
-        setMessage("Demo urunleri yuklenemedi: " + insertProductsError.message);
-        return;
-      }
-
-      setMessage("Demo urun listesi yuklendi");
-    } catch {
-      setMessage("Bir hata olustu");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFullReset = async () => {
-    if (resetText !== "SIFIRLA") {
-      setMessage('Tam sifirlama icin kutuya "SIFIRLA" yaz');
-      return;
-    }
-
-    const ok = window.confirm(
-      "Musteriler, satislar ve odemeler silinsin mi? Urun isimleri ve urun listesi korunacak."
-    );
-    if (!ok) return;
-
-    setLoading(true);
-    setMessage("");
-
-    try {
-      const { error: paymentsError } = await supabase
-        .from("payments")
-        .delete()
-        .not("id", "is", null);
-      if (paymentsError) {
-        setMessage("Odemeler silinemedi: " + paymentsError.message);
-        return;
-      }
-
-      const { error: saleItemsError } = await supabase
-        .from("sale_items")
-        .delete()
-        .not("id", "is", null);
-      if (saleItemsError) {
-        setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
-        return;
-      }
-
-      const { error: salesError } = await supabase
-        .from("sales")
-        .delete()
-        .not("id", "is", null);
-      if (salesError) {
-        setMessage("Satislar silinemedi: " + salesError.message);
-        return;
-      }
-
-      const { error: customersError } = await supabase
-        .from("customers")
-        .delete()
-        .not("id", "is", null);
-      if (customersError) {
-        setMessage("Musteriler silinemedi: " + customersError.message);
-        return;
-      }
-
-      setResetText("");
-      setMessage(
-        "Musteriler, satislar ve odemeler temizlendi. Urun listesi korundu."
-      );
-
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 1200);
-    } catch {
-      setMessage("Bir hata olustu");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const paidSales = totalSales - pendingPayments;
+  const receiptCount = sales.length || 0;
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="max-w-md mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900">
-        <div className="px-5 pt-6 pb-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-zinc-400 text-sm">Sistem yonetimi</p>
-              <h1 className="text-3xl font-bold tracking-tight text-red-500">
-                Ayarlar
-              </h1>
-              <p className="text-zinc-300 mt-1">
-                Veri temizleme ve demo yukleme
-              </p>
-            </div>
+      <div className="max-w-md mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900 flex flex-col">
+        <div className="px-5 pt-6 pb-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="h-16 w-16 rounded-2xl overflow-hidden bg-white/5 border border-zinc-800 flex items-center justify-center">
+                <Image
+                  src="/kilic-logo.png"
+                  alt="Kılıç Tavukçuluk Logo"
+                  width={64}
+                  height={64}
+                  className="object-contain"
+                />
+              </div>
 
-            <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
-              A
+              <div>
+                <p className="text-zinc-400 text-sm">Hos geldin</p>
+                <h1 className="text-3xl font-bold tracking-tight text-red-500">
+                  Kılıç Tavukçuluk
+                </h1>
+                <p className="text-zinc-300 mt-1">Satis Takip Sistemi</p>
+              </div>
             </div>
           </div>
 
-          <div className="mt-6 space-y-4">
+          <button
+            onClick={loadData}
+            className="w-full mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm font-semibold"
+          >
+            {loading ? "Guncelleniyor..." : "Verileri Yenile"}
+          </button>
+
+          <div className="grid grid-cols-2 gap-3 mt-6">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
-              <h2 className="text-lg font-semibold mb-3">Veri Temizleme</h2>
-
-              <div className="space-y-3">
-                <button
-                  onClick={handleDeleteSales}
-                  disabled={loading}
-                  className="w-full rounded-2xl bg-white text-black p-4 font-semibold disabled:opacity-60"
-                >
-                  Satislari Temizle
-                </button>
-
-                <button
-                  onClick={handleDeletePayments}
-                  disabled={loading}
-                  className="w-full rounded-2xl bg-white text-black p-4 font-semibold disabled:opacity-60"
-                >
-                  Odemeleri Temizle
-                </button>
-
-                <button
-                  onClick={handleLoadDemoProducts}
-                  disabled={loading}
-                  className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 font-semibold disabled:opacity-60"
-                >
-                  Demo Urunleri Yukle
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-3xl bg-zinc-900 border border-red-900 p-4">
-              <h2 className="text-lg font-semibold text-red-400 mb-3">
-                Tum Sistemi Sifirla
+              <p className="text-sm text-zinc-400">Toplam Satis</p>
+              <h2 className="text-2xl font-bold mt-2">
+                {totalSales.toLocaleString("tr-TR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                TL
               </h2>
-
-              <p className="text-sm text-zinc-400 mb-3">
-                Musteriler, satislar ve odemeler silinir. Urun listesi korunur.
-              </p>
-
-              <input
-                type="text"
-                value={resetText}
-                onChange={(e) => setResetText(e.target.value)}
-                placeholder='Onay icin SIFIRLA yaz'
-                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
-              />
-
-              <button
-                onClick={handleFullReset}
-                disabled={loading}
-                className="w-full mt-3 rounded-2xl bg-red-600 p-4 font-semibold disabled:opacity-60"
-              >
-                Tum Sistemi Sifirla
-              </button>
             </div>
 
-            {message && (
-              <div className="rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm">
-                {message}
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-sm text-zinc-400">Kesilen Fis</p>
+              <h2 className="text-2xl font-bold mt-2">{receiptCount}</h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-sm text-zinc-400">Tahsilat</p>
+              <h2 className="text-2xl font-bold mt-2 text-green-400">
+                {paidSales.toLocaleString("tr-TR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                TL
+              </h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-sm text-zinc-400">Veresiye</p>
+              <h2 className="text-2xl font-bold mt-2 text-red-400">
+                {pendingPayments.toLocaleString("tr-TR", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}{" "}
+                TL
+              </h2>
+            </div>
+          </div>
+
+          <Link
+            href="/yeni-satis"
+            className="block w-full mt-6 rounded-3xl bg-red-600 hover:bg-red-700 transition p-4 text-center text-lg font-semibold shadow-lg shadow-red-950/40"
+          >
+            + Yeni Satis
+          </Link>
+
+          <div className="mt-6">
+            <h3 className="text-sm text-zinc-400 mb-3">Hizli Erisim</h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href="/musteriler"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Musteriler
+              </Link>
+
+              <Link
+                href="/urunler"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Urunler
+              </Link>
+
+              <Link
+                href="/gecmis-fisler"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Gecmis Fisler
+              </Link>
+
+              <Link
+                href="/raporlar"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Raporlar
+              </Link>
+
+              <Link
+                href="/odemeler"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Odemeler
+              </Link>
+
+              <Link
+                href="/ayarlar"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Ayarlar
+              </Link>
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+            <p className="text-sm text-zinc-400">Bugunun Ozeti</p>
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-300">Toplam musteri</span>
+                <span className="font-semibold">{customerCount}</span>
               </div>
-            )}
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-300">Toplam urun</span>
+                <span className="font-semibold">{productCount}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-300">Bekleyen odeme</span>
+                <span className="font-semibold text-red-400">
+                  {pendingPayments.toLocaleString("tr-TR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  TL
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-auto sticky bottom-0 bg-zinc-950/95 backdrop-blur border-t border-zinc-800">
+          <div className="grid grid-cols-4 text-center text-xs">
+            <Link href="/" className="py-4 text-red-500 font-semibold">
+              Ana Sayfa
+            </Link>
+            <Link href="/gecmis-fisler" className="py-4 text-zinc-400">
+              Fisler
+            </Link>
+            <Link href="/musteriler" className="py-4 text-zinc-400">
+              Musteriler
+            </Link>
+            <Link href="/raporlar" className="py-4 text-zinc-400">
+              Raporlar
+            </Link>
           </div>
         </div>
       </div>
