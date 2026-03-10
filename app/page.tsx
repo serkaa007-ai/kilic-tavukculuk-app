@@ -1,33 +1,72 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
-export default async function Home() {
-  const { data: sales } = await supabase
-    .from("sales")
-    .select("id, total_amount, payment_status, created_at")
-    .order("created_at", { ascending: false });
+type Sale = {
+  id: string;
+  total_amount: number | null;
+  payment_status: string | null;
+  created_at: string;
+};
 
-  const { count: customerCount } = await supabase
-    .from("customers")
-    .select("*", { count: "exact", head: true });
+export default function Home() {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const { count: productCount } = await supabase
-    .from("products")
-    .select("*", { count: "exact", head: true });
+  const loadData = async () => {
+    const { data: salesData } = await supabase
+      .from("sales")
+      .select("id, total_amount, payment_status, created_at")
+      .order("created_at", { ascending: false });
+
+    const { count: customersCountData } = await supabase
+      .from("customers")
+      .select("*", { count: "exact", head: true });
+
+    const { count: productsCountData } = await supabase
+      .from("products")
+      .select("*", { count: "exact", head: true });
+
+    setSales((salesData as Sale[]) || []);
+    setCustomerCount(customersCountData || 0);
+    setProductCount(productsCountData || 0);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadData();
+
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+
+    const handleFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   const totalSales =
-    sales?.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0;
+    sales.reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0;
 
   const pendingPayments =
     sales
-      ?.filter((sale) => sale.payment_status === "Bekliyor")
+      .filter((sale) => sale.payment_status === "Bekliyor")
       .reduce((sum, sale) => sum + Number(sale.total_amount || 0), 0) || 0;
 
   const paidSales = totalSales - pendingPayments;
-  const receiptCount = sales?.length || 0;
+  const receiptCount = sales.length || 0;
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -53,6 +92,10 @@ export default async function Home() {
                 <p className="text-zinc-300 mt-1">Satis Takip Sistemi</p>
               </div>
             </div>
+          </div>
+
+          <div className="mt-3 text-xs text-zinc-500">
+            {loading ? "Veriler yukleniyor..." : "Otomatik guncelleniyor"}
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-6">
@@ -136,16 +179,17 @@ export default async function Home() {
 
               <Link
                 href="/odemeler"
-                className="rounded-3xl bg-white text-black p-4 font-semibold text-center col-span-2"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
               >
                 Odemeler
               </Link>
+
               <Link
-  href="/ayarlar"
-  className="rounded-3xl bg-white text-black p-4 font-semibold text-center col-span-2"
->
-  Ayarlar
-</Link>
+                href="/ayarlar"
+                className="rounded-3xl bg-white text-black p-4 font-semibold text-center"
+              >
+                Ayarlar
+              </Link>
             </div>
           </div>
 
@@ -154,11 +198,11 @@ export default async function Home() {
             <div className="mt-3 space-y-2 text-sm">
               <div className="flex items-center justify-between">
                 <span className="text-zinc-300">Toplam musteri</span>
-                <span className="font-semibold">{customerCount || 0}</span>
+                <span className="font-semibold">{customerCount}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-300">Toplam urun</span>
-                <span className="font-semibold">{productCount || 0}</span>
+                <span className="font-semibold">{productCount}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-300">Bekleyen odeme</span>

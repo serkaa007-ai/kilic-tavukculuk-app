@@ -27,8 +27,6 @@ export default function GecmisFislerPage() {
   const [loading, setLoading] = useState(true);
 
   const loadSales = async () => {
-    setLoading(true);
-
     const { data } = await supabase
       .from("sales")
       .select(
@@ -56,6 +54,21 @@ export default function GecmisFislerPage() {
 
   useEffect(() => {
     loadSales();
+
+    const interval = setInterval(() => {
+      loadSales();
+    }, 5000);
+
+    const handleFocus = () => {
+      loadSales();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   return (
@@ -76,12 +89,9 @@ export default function GecmisFislerPage() {
             </div>
           </div>
 
-          <button
-            onClick={loadSales}
-            className="w-full mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm font-semibold"
-          >
-            {loading ? "Guncelleniyor..." : "Fisleri Yenile"}
-          </button>
+          <div className="mt-3 text-xs text-zinc-500">
+            {loading ? "Fisler yukleniyor..." : "Otomatik guncelleniyor"}
+          </div>
 
           <div className="space-y-3 mt-5">
             {!loading && sales.length === 0 && (

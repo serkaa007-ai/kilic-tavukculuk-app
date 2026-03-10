@@ -22,8 +22,6 @@ export default function RaporlarPage() {
   const [loading, setLoading] = useState(true);
 
   const loadReports = async () => {
-    setLoading(true);
-
     const { data } = await supabase
       .from("sales")
       .select(
@@ -47,6 +45,21 @@ export default function RaporlarPage() {
 
   useEffect(() => {
     loadReports();
+
+    const interval = setInterval(() => {
+      loadReports();
+    }, 5000);
+
+    const handleFocus = () => {
+      loadReports();
+    };
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   const allSales = sales || [];
@@ -130,12 +143,9 @@ export default function RaporlarPage() {
             </div>
           </div>
 
-          <button
-            onClick={loadReports}
-            className="w-full mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm font-semibold"
-          >
-            {loading ? "Guncelleniyor..." : "Raporlari Yenile"}
-          </button>
+          <div className="mt-3 text-xs text-zinc-500">
+            {loading ? "Raporlar yukleniyor..." : "Otomatik guncelleniyor"}
+          </div>
 
           <div className="grid grid-cols-2 gap-3 mt-6">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
