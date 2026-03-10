@@ -140,6 +140,12 @@ export default async function Home() {
               >
                 Odemeler
               </Link>
+              <Link
+  href="/ayarlar"
+  className="rounded-3xl bg-white text-black p-4 font-semibold text-center col-span-2"
+>
+  Ayarlar
+</Link>
             </div>
           </div>
 
