@@ -24,6 +24,8 @@ export default function UrunlerPage() {
   const [editUnit, setEditUnit] = useState("kg");
   const [editActive, setEditActive] = useState(true);
 
+  const [openProductId, setOpenProductId] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -90,7 +92,13 @@ export default function UrunlerPage() {
     setEditPrice(String(product.price ?? 0));
     setEditUnit(product.unit || "kg");
     setEditActive(Boolean(product.active));
+    setOpenProductId(product.id);
     setMessage("");
+
+    setTimeout(() => {
+      const el = document.getElementById(`product-${product.id}`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
   };
 
   const cancelEdit = () => {
@@ -137,8 +145,10 @@ export default function UrunlerPage() {
       }
 
       setMessage("Urun basariyla guncellendi");
+      const currentId = editingId;
       cancelEdit();
       await loadProducts();
+      setOpenProductId(currentId);
     } catch {
       setMessage("Bir hata olustu");
     } finally {
@@ -166,6 +176,10 @@ export default function UrunlerPage() {
         cancelEdit();
       }
 
+      if (openProductId === id) {
+        setOpenProductId(null);
+      }
+
       setMessage("Urun silindi");
       await loadProducts();
     } catch {
@@ -173,6 +187,10 @@ export default function UrunlerPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleProduct = (id: string) => {
+    setOpenProductId((prev) => (prev === id ? null : id));
   };
 
   return (
@@ -231,65 +249,6 @@ export default function UrunlerPage() {
             </button>
           </div>
 
-          {editingId && (
-            <div className="mt-4 rounded-3xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
-              <h2 className="text-lg font-semibold">Urun Duzenle</h2>
-
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                placeholder="Urun adi"
-                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
-              />
-
-              <input
-                type="text"
-                value={editPrice}
-                onChange={(e) => setEditPrice(e.target.value)}
-                placeholder="Fiyat"
-                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
-              />
-
-              <select
-                value={editUnit}
-                onChange={(e) => setEditUnit(e.target.value)}
-                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
-              >
-                <option value="kg">kg</option>
-                <option value="adet">adet</option>
-                <option value="koli">koli</option>
-              </select>
-
-              <select
-                value={editActive ? "aktif" : "pasif"}
-                onChange={(e) => setEditActive(e.target.value === "aktif")}
-                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
-              >
-                <option value="aktif">Aktif</option>
-                <option value="pasif">Pasif</option>
-              </select>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleUpdateProduct}
-                  disabled={loading}
-                  className="rounded-2xl bg-red-600 p-4 font-semibold disabled:opacity-60"
-                >
-                  Guncelle
-                </button>
-
-                <button
-                  onClick={cancelEdit}
-                  disabled={loading}
-                  className="rounded-2xl bg-zinc-800 border border-zinc-700 p-4 font-semibold disabled:opacity-60"
-                >
-                  Vazgec
-                </button>
-              </div>
-            </div>
-          )}
-
           {message && (
             <div className="mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm">
               {message}
@@ -318,51 +277,134 @@ export default function UrunlerPage() {
           </div>
 
           <div className="space-y-3 mt-5">
-            {products.map((product) => (
-              <div
-                key={product.id}
-                className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-lg font-semibold">{product.name}</h2>
-                    <p className="text-sm text-zinc-400 mt-1">
-                      {Number(product.price || 0).toLocaleString("tr-TR", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}{" "}
-                      TL / {product.unit || "kg"}
-                    </p>
-                  </div>
+            {products.map((product) => {
+              const isOpen =
+                openProductId === product.id || editingId === product.id;
 
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      product.active
-                        ? "bg-green-500/10 text-green-400"
-                        : "bg-red-500/10 text-red-400"
-                    }`}
-                  >
-                    {product.active ? "Aktif" : "Pasif"}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 mt-4">
+              return (
+                <div
+                  id={`product-${product.id}`}
+                  key={product.id}
+                  className="rounded-3xl bg-zinc-900 border border-zinc-800 overflow-hidden"
+                >
                   <button
-                    onClick={() => startEdit(product)}
-                    className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
+                    type="button"
+                    onClick={() => toggleProduct(product.id)}
+                    className="w-full p-4 text-left"
                   >
-                    Duzenle
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">{product.name}</h2>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          {Number(product.price || 0).toLocaleString("tr-TR", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          TL / {product.unit || "kg"}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                            product.active
+                              ? "bg-green-500/10 text-green-400"
+                              : "bg-red-500/10 text-red-400"
+                          }`}
+                        >
+                          {product.active ? "Aktif" : "Pasif"}
+                        </span>
+
+                        <span className="text-xl text-zinc-400">
+                          {isOpen ? "−" : "+"}
+                        </span>
+                      </div>
+                    </div>
                   </button>
 
-                  <button
-                    onClick={() => handleDeleteProduct(product.id)}
-                    className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
-                  >
-                    Sil
-                  </button>
+                  {isOpen && (
+                    <div className="px-4 pb-4">
+                      {editingId === product.id ? (
+                        <div className="rounded-3xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 mt-2">
+                          <h2 className="text-lg font-semibold">Urun Duzenle</h2>
+
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            placeholder="Urun adi"
+                            className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+                          />
+
+                          <input
+                            type="text"
+                            value={editPrice}
+                            onChange={(e) => setEditPrice(e.target.value)}
+                            placeholder="Fiyat"
+                            className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+                          />
+
+                          <select
+                            value={editUnit}
+                            onChange={(e) => setEditUnit(e.target.value)}
+                            className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+                          >
+                            <option value="kg">kg</option>
+                            <option value="adet">adet</option>
+                            <option value="koli">koli</option>
+                          </select>
+
+                          <select
+                            value={editActive ? "aktif" : "pasif"}
+                            onChange={(e) =>
+                              setEditActive(e.target.value === "aktif")
+                            }
+                            className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+                          >
+                            <option value="aktif">Aktif</option>
+                            <option value="pasif">Pasif</option>
+                          </select>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={handleUpdateProduct}
+                              disabled={loading}
+                              className="rounded-2xl bg-red-600 p-4 font-semibold disabled:opacity-60"
+                            >
+                              Guncelle
+                            </button>
+
+                            <button
+                              onClick={cancelEdit}
+                              disabled={loading}
+                              className="rounded-2xl bg-zinc-800 border border-zinc-700 p-4 font-semibold disabled:opacity-60"
+                            >
+                              Vazgec
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-3 mt-2">
+                          <button
+                            onClick={() => startEdit(product)}
+                            className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
+                          >
+                            Duzenle
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
