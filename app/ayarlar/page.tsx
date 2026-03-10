@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+
 import { supabase } from "@/lib/supabase";
 
 export default function AyarlarPage() {
@@ -16,11 +17,41 @@ export default function AyarlarPage() {
     setMessage("");
 
     try {
-      await supabase.from("payments").delete().neq("id", "");
-      await supabase.from("sale_items").delete().neq("id", "");
-      await supabase.from("sales").delete().neq("id", "");
+      const { error: paymentsError } = await supabase
+        .from("payments")
+        .delete()
+        .neq("id", "");
+
+      if (paymentsError) {
+        setMessage("Odemeler silinemedi: " + paymentsError.message);
+        return;
+      }
+
+      const { error: saleItemsError } = await supabase
+        .from("sale_items")
+        .delete()
+        .neq("id", "");
+
+      if (saleItemsError) {
+        setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
+        return;
+      }
+
+      const { error: salesError } = await supabase
+        .from("sales")
+        .delete()
+        .neq("id", "");
+
+      if (salesError) {
+        setMessage("Satislar silinemedi: " + salesError.message);
+        return;
+      }
 
       setMessage("Satislar ve odemeler temizlendi");
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1200);
     } catch {
       setMessage("Bir hata olustu");
     } finally {
@@ -36,7 +67,16 @@ export default function AyarlarPage() {
     setMessage("");
 
     try {
-      await supabase.from("payments").delete().neq("id", "");
+      const { error: paymentsError } = await supabase
+        .from("payments")
+        .delete()
+        .neq("id", "");
+
+      if (paymentsError) {
+        setMessage("Odemeler silinemedi: " + paymentsError.message);
+        return;
+      }
+
       setMessage("Odeme kayitlari temizlendi");
     } catch {
       setMessage("Bir hata olustu");
@@ -46,14 +86,24 @@ export default function AyarlarPage() {
   };
 
   const handleLoadDemoProducts = async () => {
-    const ok = window.confirm("Demo urun listesi yüklensin mi? Mevcut urunler silinir.");
+    const ok = window.confirm(
+      "Demo urun listesi yuklensin mi? Mevcut urunler silinir."
+    );
     if (!ok) return;
 
     setLoading(true);
     setMessage("");
 
     try {
-      await supabase.from("products").delete().neq("id", "");
+      const { error: deleteProductsError } = await supabase
+        .from("products")
+        .delete()
+        .neq("id", "");
+
+      if (deleteProductsError) {
+        setMessage("Mevcut urunler silinemedi: " + deleteProductsError.message);
+        return;
+      }
 
       const demoProducts = [
         { name: "Posetli pilic", price: 0, unit: "kg", active: true },
@@ -83,7 +133,14 @@ export default function AyarlarPage() {
         { name: "Savurma", price: 0, unit: "kg", active: true },
       ];
 
-      await supabase.from("products").insert(demoProducts);
+      const { error: insertProductsError } = await supabase
+        .from("products")
+        .insert(demoProducts);
+
+      if (insertProductsError) {
+        setMessage("Demo urunleri yuklenemedi: " + insertProductsError.message);
+        return;
+      }
 
       setMessage("Demo urun listesi yuklendi");
     } catch {
@@ -99,21 +156,59 @@ export default function AyarlarPage() {
       return;
     }
 
-    const ok = window.confirm("Tum sistem sifirlansin mi? Bu islem geri alinamaz.");
+    const ok = window.confirm(
+      "Musteriler, satislar ve odemeler silinsin mi? Urun isimleri ve urun listesi korunacak."
+    );
     if (!ok) return;
 
     setLoading(true);
     setMessage("");
 
     try {
-      await supabase.from("payments").delete().neq("id", "");
-      await supabase.from("sale_items").delete().neq("id", "");
-      await supabase.from("sales").delete().neq("id", "");
-      await supabase.from("customers").delete().neq("id", "");
-      await supabase.from("products").delete().neq("id", "");
+      const { error: paymentsError } = await supabase
+        .from("payments")
+        .delete()
+        .neq("id", "");
+      if (paymentsError) {
+        setMessage("Odemeler silinemedi: " + paymentsError.message);
+        return;
+      }
+
+      const { error: saleItemsError } = await supabase
+        .from("sale_items")
+        .delete()
+        .neq("id", "");
+      if (saleItemsError) {
+        setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
+        return;
+      }
+
+      const { error: salesError } = await supabase
+        .from("sales")
+        .delete()
+        .neq("id", "");
+      if (salesError) {
+        setMessage("Satislar silinemedi: " + salesError.message);
+        return;
+      }
+
+      const { error: customersError } = await supabase
+        .from("customers")
+        .delete()
+        .neq("id", "");
+      if (customersError) {
+        setMessage("Musteriler silinemedi: " + customersError.message);
+        return;
+      }
 
       setResetText("");
-      setMessage("Tum sistem sifirlandi");
+      setMessage(
+        "Musteriler, satislar ve odemeler temizlendi. Urun listesi korundu."
+      );
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1200);
     } catch {
       setMessage("Bir hata olustu");
     } finally {
@@ -131,7 +226,9 @@ export default function AyarlarPage() {
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
                 Ayarlar
               </h1>
-              <p className="text-zinc-300 mt-1">Veri temizleme ve demo yukleme</p>
+              <p className="text-zinc-300 mt-1">
+                Veri temizleme ve demo yukleme
+              </p>
             </div>
 
             <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
@@ -176,7 +273,7 @@ export default function AyarlarPage() {
               </h2>
 
               <p className="text-sm text-zinc-400 mb-3">
-                Bu islem musteriler, urunler, satislar ve odemeler dahil her seyi siler.
+                Musteriler, satislar ve odemeler silinir. Urun listesi korunur.
               </p>
 
               <input
