@@ -1,6 +1,7 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type SaleItem = {
@@ -21,29 +22,41 @@ type Sale = {
   sale_items: SaleItem[];
 };
 
-export default async function GecmisFislerPage() {
-  const { data: sales } = await supabase
-    .from("sales")
-    .select(
-      `
-      id,
-      total_amount,
-      payment_status,
-      created_at,
-      customers (
-        name
-      ),
-      sale_items (
-        product_name,
-        quantity,
-        unit_price,
-        total_price
-      )
-    `
-    )
-    .order("created_at", { ascending: false });
+export default function GecmisFislerPage() {
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const typedSales = (sales || []) as unknown as Sale[];
+  const loadSales = async () => {
+    setLoading(true);
+
+    const { data } = await supabase
+      .from("sales")
+      .select(
+        `
+        id,
+        total_amount,
+        payment_status,
+        created_at,
+        customers (
+          name
+        ),
+        sale_items (
+          product_name,
+          quantity,
+          unit_price,
+          total_price
+        )
+      `
+      )
+      .order("created_at", { ascending: false });
+
+    setSales((data as unknown as Sale[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadSales();
+  }, []);
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -63,8 +76,21 @@ export default async function GecmisFislerPage() {
             </div>
           </div>
 
+          <button
+            onClick={loadSales}
+            className="w-full mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm font-semibold"
+          >
+            {loading ? "Guncelleniyor..." : "Fisleri Yenile"}
+          </button>
+
           <div className="space-y-3 mt-5">
-            {typedSales.map((sale) => (
+            {!loading && sales.length === 0 && (
+              <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4 text-sm text-zinc-400">
+                Kayitli fis bulunamadi.
+              </div>
+            )}
+
+            {sales.map((sale) => (
               <div
                 key={sale.id}
                 className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4"
