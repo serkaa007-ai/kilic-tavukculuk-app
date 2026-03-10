@@ -1,191 +1,369 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-type Urun = {
+type Product = {
   id: string;
-  ad: string;
-  kategori: string;
-  fiyat: number;
+  name: string;
+  price: number | null;
+  unit: string | null;
+  active: boolean | null;
 };
 
-const VARSAYILAN_URUNLER: Urun[] = [
-  { id: "1", ad: "Derili Bonfile", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "2", ad: "Bonfile", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "3", ad: "İncik", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "4", ad: "Kanat", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "5", ad: "Pirzola", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "6", ad: "Baget", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "7", ad: "Göğüs", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "8", ad: "Kalçalı But", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "9", ad: "But", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "10", ad: "Fileto", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "11", ad: "Kemiksiz But", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "12", ad: "Tüm Tavuk", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "13", ad: "Yarım Tavuk", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "14", ad: "Izgaralık Kanat", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "15", ad: "Kanat Uç", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "16", ad: "Tavuk Kelebek", kategori: "Tavuk Ürünleri", fiyat: 0 },
-  { id: "17", ad: "Tavuk Ciğer", kategori: "Sakatat", fiyat: 0 },
-  { id: "18", ad: "Taşlık", kategori: "Sakatat", fiyat: 0 },
-  { id: "19", ad: "Tavuk Boyun", kategori: "Diğer", fiyat: 0 },
-  { id: "20", ad: "Tavuk Suyu Seti", kategori: "Diğer", fiyat: 0 },
-  { id: "21", ad: "Tavuk Deri", kategori: "Diğer", fiyat: 0 },
-  { id: "22", ad: "Soslu Kanat", kategori: "Marineli", fiyat: 0 },
-  { id: "23", ad: "Soslu Bonfile", kategori: "Marineli", fiyat: 0 },
-  { id: "24", ad: "Tavuk Şiş", kategori: "Hazır Ürün", fiyat: 0 },
-  { id: "25", ad: "Tavuk Döner", kategori: "Hazır Ürün", fiyat: 0 },
-];
-
-const STORAGE_KEY = "urunler";
-
 export default function UrunlerPage() {
-  const [urunler, setUrunler] = useState<Urun[]>([]);
-  const [yeniUrun, setYeniUrun] = useState("");
-  const [yeniKategori, setYeniKategori] = useState("Tavuk Ürünleri");
-  const [yeniFiyat, setYeniFiyat] = useState("");
-  const [acikUrunId, setAcikUrunId] = useState<string | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [unit, setUnit] = useState("kg");
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editUnit, setEditUnit] = useState("kg");
+  const [editActive, setEditActive] = useState(true);
+
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const loadProducts = async () => {
+    const { data } = await supabase
+      .from("products")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setProducts((data as Product[]) || []);
+  };
 
   useEffect(() => {
-    const kayitli = localStorage.getItem(STORAGE_KEY);
-
-    if (kayitli) {
-      try {
-        const parsed = JSON.parse(kayitli);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setUrunler(parsed);
-          return;
-        }
-      } catch {}
-    }
-
-    setUrunler(VARSAYILAN_URUNLER);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(VARSAYILAN_URUNLER));
+    loadProducts();
   }, []);
 
-  useEffect(() => {
-    if (urunler.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(urunler));
+  const handleAddProduct = async () => {
+    setMessage("");
+
+    if (!name.trim()) {
+      setMessage("Urun adi gir");
+      return;
     }
-  }, [urunler]);
 
-  const kategoriler = useMemo(() => {
-    const hepsi = urunler.map((u) => u.kategori);
-    return [...new Set(["Tavuk Ürünleri", "Sakatat", "Marineli", "Hazır Ürün", "Diğer", ...hepsi])];
-  }, [urunler]);
+    const priceNumber = parseFloat(price.replace(",", "."));
 
-  const urunEkle = () => {
-    if (!yeniUrun.trim()) return;
+    if (isNaN(priceNumber) || priceNumber < 0) {
+      setMessage("Gecerli fiyat gir");
+      return;
+    }
 
-    const yeniKayit: Urun = {
-      id: Date.now().toString(),
-      ad: yeniUrun.trim(),
-      kategori: yeniKategori,
-      fiyat: Number(yeniFiyat) || 0,
-    };
+    try {
+      setLoading(true);
 
-    setUrunler((prev) => [...prev, yeniKayit]);
-    setYeniUrun("");
-    setYeniKategori("Tavuk Ürünleri");
-    setYeniFiyat("");
+      const { error } = await supabase.from("products").insert([
+        {
+          name: name.trim(),
+          price: priceNumber,
+          unit: unit.trim() || "kg",
+          active: true,
+        },
+      ]);
+
+      if (error) {
+        setMessage("Urun eklenemedi");
+        return;
+      }
+
+      setName("");
+      setPrice("");
+      setUnit("kg");
+      setMessage("Urun basariyla eklendi");
+      await loadProducts();
+    } catch {
+      setMessage("Bir hata olustu");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const urunSil = (id: string) => {
-    setUrunler((prev) => prev.filter((urun) => urun.id !== id));
-    if (acikUrunId === id) setAcikUrunId(null);
+  const startEdit = (product: Product) => {
+    setEditingId(product.id);
+    setEditName(product.name || "");
+    setEditPrice(String(product.price ?? 0));
+    setEditUnit(product.unit || "kg");
+    setEditActive(Boolean(product.active));
+    setMessage("");
   };
 
-  const toggleUrun = (id: string) => {
-    setAcikUrunId((prev) => (prev === id ? null : id));
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName("");
+    setEditPrice("");
+    setEditUnit("kg");
+    setEditActive(true);
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingId) return;
+
+    setMessage("");
+
+    if (!editName.trim()) {
+      setMessage("Urun adi gir");
+      return;
+    }
+
+    const priceNumber = parseFloat(editPrice.replace(",", "."));
+
+    if (isNaN(priceNumber) || priceNumber < 0) {
+      setMessage("Gecerli fiyat gir");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase
+        .from("products")
+        .update({
+          name: editName.trim(),
+          price: priceNumber,
+          unit: editUnit,
+          active: editActive,
+        })
+        .eq("id", editingId);
+
+      if (error) {
+        setMessage("Urun guncellenemedi");
+        return;
+      }
+
+      setMessage("Urun basariyla guncellendi");
+      cancelEdit();
+      await loadProducts();
+    } catch {
+      setMessage("Bir hata olustu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    const ok = window.confirm("Bu urun silinsin mi?");
+    if (!ok) return;
+
+    setMessage("");
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase.from("products").delete().eq("id", id);
+
+      if (error) {
+        setMessage("Urun silinemedi");
+        return;
+      }
+
+      if (editingId === id) {
+        cancelEdit();
+      }
+
+      setMessage("Urun silindi");
+      await loadProducts();
+    } catch {
+      setMessage("Bir hata olustu");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <main className="min-h-screen bg-gray-100 p-4 pb-24">
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-6 rounded-2xl bg-white p-5 shadow-sm">
-          <h1 className="mb-4 text-2xl font-bold text-gray-900">Ürünler</h1>
+    <main className="min-h-screen bg-black text-white">
+      <div className="max-w-md mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900 flex flex-col">
+        <div className="px-5 pt-6 pb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-zinc-400 text-sm">Urun yonetimi</p>
+              <h1 className="text-3xl font-bold tracking-tight text-red-500">
+                Urunler
+              </h1>
+              <p className="text-zinc-300 mt-1">Ekle, duzenle, sil</p>
+            </div>
 
-          <div className="grid gap-3">
+            <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
+              U
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-3xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
+            <h2 className="text-lg font-semibold">Yeni Urun Ekle</h2>
+
             <input
               type="text"
-              placeholder="Ürün adı"
-              value={yeniUrun}
-              onChange={(e) => setYeniUrun(e.target.value)}
-              className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Urun adi"
+              className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+            />
+
+            <input
+              type="text"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="Fiyat"
+              className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
             />
 
             <select
-              value={yeniKategori}
-              onChange={(e) => setYeniKategori(e.target.value)}
-              className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
             >
-              {kategoriler.map((kategori) => (
-                <option key={kategori} value={kategori}>
-                  {kategori}
-                </option>
-              ))}
+              <option value="kg">kg</option>
+              <option value="adet">adet</option>
+              <option value="koli">koli</option>
             </select>
 
-            <input
-              type="number"
-              placeholder="Fiyat"
-              value={yeniFiyat}
-              onChange={(e) => setYeniFiyat(e.target.value)}
-              className="rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-red-500"
-            />
-
             <button
-              onClick={urunEkle}
-              className="rounded-xl bg-red-600 px-4 py-3 font-semibold text-white transition hover:bg-red-700"
+              onClick={handleAddProduct}
+              disabled={loading}
+              className="w-full rounded-2xl bg-white text-black p-4 font-semibold disabled:opacity-60"
             >
-              Ürün Ekle
+              {loading ? "Isleniyor..." : "+ Yeni Urun Ekle"}
             </button>
           </div>
-        </div>
 
-        <div className="space-y-3">
-          {urunler.map((urun) => {
-            const acik = acikUrunId === urun.id;
+          {editingId && (
+            <div className="mt-4 rounded-3xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
+              <h2 className="text-lg font-semibold">Urun Duzenle</h2>
 
-            return (
-              <div key={urun.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Urun adi"
+                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+              />
+
+              <input
+                type="text"
+                value={editPrice}
+                onChange={(e) => setEditPrice(e.target.value)}
+                placeholder="Fiyat"
+                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+              />
+
+              <select
+                value={editUnit}
+                onChange={(e) => setEditUnit(e.target.value)}
+                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+              >
+                <option value="kg">kg</option>
+                <option value="adet">adet</option>
+                <option value="koli">koli</option>
+              </select>
+
+              <select
+                value={editActive ? "aktif" : "pasif"}
+                onChange={(e) => setEditActive(e.target.value === "aktif")}
+                className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+              >
+                <option value="aktif">Aktif</option>
+                <option value="pasif">Pasif</option>
+              </select>
+
+              <div className="grid grid-cols-2 gap-3">
                 <button
-                  type="button"
-                  onClick={() => toggleUrun(urun.id)}
-                  className="flex w-full items-center justify-between px-4 py-4 text-left"
+                  onClick={handleUpdateProduct}
+                  disabled={loading}
+                  className="rounded-2xl bg-red-600 p-4 font-semibold disabled:opacity-60"
                 >
-                  <div>
-                    <p className="text-base font-semibold text-gray-900">{urun.ad}</p>
-                    <p className="mt-1 text-sm text-gray-500">{urun.kategori}</p>
-                  </div>
-                  <span className="text-2xl font-bold text-red-600">{acik ? "−" : "+"}</span>
+                  Guncelle
                 </button>
 
-                {acik && (
-                  <div className="border-t bg-gray-50 px-4 py-4">
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <p>
-                        <span className="font-semibold text-gray-900">Ürün Adı:</span> {urun.ad}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-gray-900">Kategori:</span> {urun.kategori}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-gray-900">Fiyat:</span> {urun.fiyat} TL
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => urunSil(urun.id)}
-                      className="mt-4 rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-                    >
-                      Ürünü Sil
-                    </button>
-                  </div>
-                )}
+                <button
+                  onClick={cancelEdit}
+                  disabled={loading}
+                  className="rounded-2xl bg-zinc-800 border border-zinc-700 p-4 font-semibold disabled:opacity-60"
+                >
+                  Vazgec
+                </button>
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          {message && (
+            <div className="mt-4 rounded-2xl bg-zinc-800 border border-zinc-700 p-3 text-sm">
+              {message}
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400">Toplam</p>
+              <h2 className="text-xl font-bold mt-2">{products.length}</h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400">Aktif</p>
+              <h2 className="text-xl font-bold mt-2 text-green-400">
+                {products.filter((p) => p.active).length}
+              </h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400">Pasif</p>
+              <h2 className="text-xl font-bold mt-2 text-red-400">
+                {products.filter((p) => !p.active).length}
+              </h2>
+            </div>
+          </div>
+
+          <div className="space-y-3 mt-5">
+            {products.map((product) => (
+              <div
+                key={product.id}
+                className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold">{product.name}</h2>
+                    <p className="text-sm text-zinc-400 mt-1">
+                      {Number(product.price || 0).toLocaleString("tr-TR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      TL / {product.unit || "kg"}
+                    </p>
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      product.active
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-red-500/10 text-red-400"
+                    }`}
+                  >
+                    {product.active ? "Aktif" : "Pasif"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <button
+                    onClick={() => startEdit(product)}
+                    className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
+                  >
+                    Duzenle
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteProduct(product.id)}
+                    className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
+                  >
+                    Sil
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </main>
