@@ -93,12 +93,12 @@ export default function FisDetayPage() {
             Geri Don
           </Link>
 
-          <button
-            onClick={() => window.print()}
-            className="bg-black text-white px-4 py-2 rounded-xl font-semibold"
-          >
-            Yazdir / PDF
-          </button>
+         <button
+  onClick={() => window.print()}
+  className="bg-black text-white px-4 py-2 rounded-xl font-semibold"
+>
+  Yazdir / PDF
+</button>
         </div>
 
         <div className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none">
