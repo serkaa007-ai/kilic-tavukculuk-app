@@ -10,6 +10,7 @@ type Customer = {
   address: string | null;
   status: string | null;
   balance: number | null;
+  active: boolean | null;
 };
 
 export default function MusterilerPage() {
@@ -28,6 +29,10 @@ export default function MusterilerPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
+  const ensureActiveColumn = async () => {
+    await supabase.from("customers").select("active").limit(1);
+  };
+
   const loadCustomers = async () => {
     const { data } = await supabase
       .from("customers")
@@ -38,6 +43,7 @@ export default function MusterilerPage() {
   };
 
   useEffect(() => {
+    ensureActiveColumn();
     loadCustomers();
   }, []);
 
@@ -59,6 +65,7 @@ export default function MusterilerPage() {
           address: address.trim() || null,
           status: "Temiz",
           balance: 0,
+          active: true,
         },
       ]);
 
@@ -134,8 +141,8 @@ export default function MusterilerPage() {
     }
   };
 
-  const handleDeleteCustomer = async (id: string) => {
-    const ok = window.confirm("Bu musteri silinsin mi?");
+  const handleDeactivateCustomer = async (id: string) => {
+    const ok = window.confirm("Bu musteri pasife alinsin mi?");
     if (!ok) return;
 
     setMessage("");
@@ -143,10 +150,13 @@ export default function MusterilerPage() {
     try {
       setLoading(true);
 
-      const { error } = await supabase.from("customers").delete().eq("id", id);
+      const { error } = await supabase
+        .from("customers")
+        .update({ active: false })
+        .eq("id", id);
 
       if (error) {
-        setMessage("Musteri silinemedi");
+        setMessage("Musteri pasife alinamadi");
         return;
       }
 
@@ -154,7 +164,7 @@ export default function MusterilerPage() {
         cancelEdit();
       }
 
-      setMessage("Musteri silindi");
+      setMessage("Musteri pasife alindi");
       await loadCustomers();
     } catch {
       setMessage("Bir hata olustu");
@@ -162,6 +172,34 @@ export default function MusterilerPage() {
       setLoading(false);
     }
   };
+
+  const handleActivateCustomer = async (id: string) => {
+    setMessage("");
+
+    try {
+      setLoading(true);
+
+      const { error } = await supabase
+        .from("customers")
+        .update({ active: true })
+        .eq("id", id);
+
+      if (error) {
+        setMessage("Musteri aktif edilemedi");
+        return;
+      }
+
+      setMessage("Musteri yeniden aktif edildi");
+      await loadCustomers();
+    } catch {
+      setMessage("Bir hata olustu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const activeCustomers = customers.filter((c) => c.active !== false);
+  const passiveCustomers = customers.filter((c) => c.active === false);
 
   return (
     <main className="min-h-screen bg-black text-white">
@@ -173,7 +211,7 @@ export default function MusterilerPage() {
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
                 Musteriler
               </h1>
-              <p className="text-zinc-300 mt-1">Ekle, duzenle, sil</p>
+              <p className="text-zinc-300 mt-1">Ekle, duzenle, pasife al</p>
             </div>
 
             <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
@@ -281,29 +319,36 @@ export default function MusterilerPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="grid grid-cols-4 gap-3 mt-4">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
               <p className="text-xs text-zinc-400">Toplam</p>
-              <h2 className="text-xl font-bold mt-2">{customers.length}</h2>
+              <h2 className="text-xl font-bold mt-2">{activeCustomers.length}</h2>
             </div>
 
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
               <p className="text-xs text-zinc-400">Borclu</p>
               <h2 className="text-xl font-bold mt-2 text-red-400">
-                {customers.filter((c) => c.status === "Borclu").length}
+                {activeCustomers.filter((c) => c.status === "Borclu").length}
               </h2>
             </div>
 
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
               <p className="text-xs text-zinc-400">Temiz</p>
               <h2 className="text-xl font-bold mt-2 text-green-400">
-                {customers.filter((c) => c.status === "Temiz").length}
+                {activeCustomers.filter((c) => c.status === "Temiz").length}
+              </h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400">Pasif</p>
+              <h2 className="text-xl font-bold mt-2 text-zinc-300">
+                {passiveCustomers.length}
               </h2>
             </div>
           </div>
 
           <div className="space-y-3 mt-5">
-            {customers.map((customer) => (
+            {activeCustomers.map((customer) => (
               <div
                 key={customer.id}
                 className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4"
@@ -352,15 +397,66 @@ export default function MusterilerPage() {
                   </button>
 
                   <button
-                    onClick={() => handleDeleteCustomer(customer.id)}
+                    onClick={() => handleDeactivateCustomer(customer.id)}
                     className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
                   >
-                    Sil
+                    Pasife Al
                   </button>
                 </div>
               </div>
             ))}
           </div>
+
+          {passiveCustomers.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-lg font-semibold mb-3 text-zinc-300">
+                Pasif Musteriler
+              </h2>
+
+              <div className="space-y-3">
+                {passiveCustomers.map((customer) => (
+                  <div
+                    key={customer.id}
+                    className="rounded-3xl bg-zinc-900/60 border border-zinc-800 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-lg font-semibold">{customer.name}</h2>
+                        <p className="text-sm text-zinc-400 mt-1">
+                          Telefon: {customer.phone || "-"}
+                        </p>
+                        <p className="text-sm text-zinc-400">
+                          Adres: {customer.address || "-"}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full px-3 py-1 text-xs font-semibold bg-zinc-800 text-zinc-300">
+                        Pasif
+                      </span>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-zinc-400 text-sm">Bakiye</span>
+                      <span className="text-lg font-bold text-white">
+                        {Number(customer.balance || 0).toLocaleString("tr-TR", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}{" "}
+                        TL
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => handleActivateCustomer(customer.id)}
+                      className="w-full mt-4 rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
+                    >
+                      Yeniden Aktif Et
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>
