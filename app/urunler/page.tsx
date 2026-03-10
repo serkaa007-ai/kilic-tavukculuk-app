@@ -8,6 +8,7 @@ type Product = {
   name: string;
   price: number | null;
   unit: string | null;
+  stock: number | null;
   active: boolean | null;
 };
 
@@ -17,11 +18,13 @@ export default function UrunlerPage() {
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [unit, setUnit] = useState("kg");
+  const [stock, setStock] = useState("");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editUnit, setEditUnit] = useState("kg");
+  const [editStock, setEditStock] = useState("");
   const [editActive, setEditActive] = useState(true);
 
   const [openProductId, setOpenProductId] = useState<string | null>(null);
@@ -42,6 +45,13 @@ export default function UrunlerPage() {
     loadProducts();
   }, []);
 
+  const formatNumber = (value: number) => {
+    return Number(value || 0).toLocaleString("tr-TR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
   const handleAddProduct = async () => {
     setMessage("");
 
@@ -51,9 +61,15 @@ export default function UrunlerPage() {
     }
 
     const priceNumber = parseFloat(price.replace(",", "."));
+    const stockNumber = parseFloat((stock || "0").replace(",", "."));
 
     if (isNaN(priceNumber) || priceNumber < 0) {
       setMessage("Gecerli fiyat gir");
+      return;
+    }
+
+    if (isNaN(stockNumber) || stockNumber < 0) {
+      setMessage("Gecerli stok gir");
       return;
     }
 
@@ -65,6 +81,7 @@ export default function UrunlerPage() {
           name: name.trim(),
           price: priceNumber,
           unit: unit.trim() || "kg",
+          stock: stockNumber,
           active: true,
         },
       ]);
@@ -77,6 +94,7 @@ export default function UrunlerPage() {
       setName("");
       setPrice("");
       setUnit("kg");
+      setStock("");
       setMessage("Urun basariyla eklendi");
       await loadProducts();
     } catch {
@@ -91,6 +109,7 @@ export default function UrunlerPage() {
     setEditName(product.name || "");
     setEditPrice(String(product.price ?? 0));
     setEditUnit(product.unit || "kg");
+    setEditStock(String(product.stock ?? 0));
     setEditActive(Boolean(product.active));
     setOpenProductId(product.id);
     setMessage("");
@@ -106,6 +125,7 @@ export default function UrunlerPage() {
     setEditName("");
     setEditPrice("");
     setEditUnit("kg");
+    setEditStock("");
     setEditActive(true);
   };
 
@@ -120,9 +140,15 @@ export default function UrunlerPage() {
     }
 
     const priceNumber = parseFloat(editPrice.replace(",", "."));
+    const stockNumber = parseFloat(editStock.replace(",", "."));
 
     if (isNaN(priceNumber) || priceNumber < 0) {
       setMessage("Gecerli fiyat gir");
+      return;
+    }
+
+    if (isNaN(stockNumber) || stockNumber < 0) {
+      setMessage("Gecerli stok gir");
       return;
     }
 
@@ -135,6 +161,7 @@ export default function UrunlerPage() {
           name: editName.trim(),
           price: priceNumber,
           unit: editUnit,
+          stock: stockNumber,
           active: editActive,
         })
         .eq("id", editingId);
@@ -193,6 +220,10 @@ export default function UrunlerPage() {
     setOpenProductId((prev) => (prev === id ? null : id));
   };
 
+  const totalStock = products.reduce((sum, product) => {
+    return sum + Number(product.stock || 0);
+  }, 0);
+
   return (
     <main className="min-h-screen bg-black text-white">
       <div className="max-w-md mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900 flex flex-col">
@@ -203,7 +234,7 @@ export default function UrunlerPage() {
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
                 Urunler
               </h1>
-              <p className="text-zinc-300 mt-1">Ekle, duzenle, sil</p>
+              <p className="text-zinc-300 mt-1">Ekle, duzenle, sil, stok takip et</p>
             </div>
 
             <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
@@ -240,6 +271,14 @@ export default function UrunlerPage() {
               <option value="koli">koli</option>
             </select>
 
+            <input
+              type="text"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              placeholder="Stok miktari"
+              className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+            />
+
             <button
               onClick={handleAddProduct}
               disabled={loading}
@@ -255,10 +294,17 @@ export default function UrunlerPage() {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
-              <p className="text-xs text-zinc-400">Toplam</p>
+              <p className="text-xs text-zinc-400">Toplam urun</p>
               <h2 className="text-xl font-bold mt-2">{products.length}</h2>
+            </div>
+
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <p className="text-xs text-zinc-400">Toplam stok</p>
+              <h2 className="text-xl font-bold mt-2 text-yellow-400">
+                {formatNumber(totalStock)}
+              </h2>
             </div>
 
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
@@ -295,12 +341,13 @@ export default function UrunlerPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h2 className="text-lg font-semibold">{product.name}</h2>
+
                         <p className="text-sm text-zinc-400 mt-1">
-                          {Number(product.price || 0).toLocaleString("tr-TR", {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}{" "}
-                          TL / {product.unit || "kg"}
+                          {formatNumber(Number(product.price || 0))} TL / {product.unit || "kg"}
+                        </p>
+
+                        <p className="text-sm text-yellow-400 mt-1">
+                          Stok: {formatNumber(Number(product.stock || 0))} {product.unit || "kg"}
                         </p>
                       </div>
 
@@ -354,6 +401,14 @@ export default function UrunlerPage() {
                             <option value="koli">koli</option>
                           </select>
 
+                          <input
+                            type="text"
+                            value={editStock}
+                            onChange={(e) => setEditStock(e.target.value)}
+                            placeholder="Stok miktari"
+                            className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
+                          />
+
                           <select
                             value={editActive ? "aktif" : "pasif"}
                             onChange={(e) =>
@@ -384,20 +439,29 @@ export default function UrunlerPage() {
                           </div>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 gap-3 mt-2">
-                          <button
-                            onClick={() => startEdit(product)}
-                            className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
-                          >
-                            Duzenle
-                          </button>
+                        <div className="mt-2 space-y-3">
+                          <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4">
+                            <p className="text-sm text-zinc-400">Mevcut stok</p>
+                            <p className="text-lg font-semibold text-yellow-400 mt-1">
+                              {formatNumber(Number(product.stock || 0))} {product.unit || "kg"}
+                            </p>
+                          </div>
 
-                          <button
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
-                          >
-                            Sil
-                          </button>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              onClick={() => startEdit(product)}
+                              className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
+                            >
+                              Duzenle
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteProduct(product.id)}
+                              className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
+                            >
+                              Sil
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
