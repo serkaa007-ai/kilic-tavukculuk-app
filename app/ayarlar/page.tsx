@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-
 import { supabase } from "@/lib/supabase";
 
 export default function AyarlarPage() {
@@ -20,7 +19,7 @@ export default function AyarlarPage() {
       const { error: paymentsError } = await supabase
         .from("payments")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
 
       if (paymentsError) {
         setMessage("Odemeler silinemedi: " + paymentsError.message);
@@ -30,7 +29,7 @@ export default function AyarlarPage() {
       const { error: saleItemsError } = await supabase
         .from("sale_items")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
 
       if (saleItemsError) {
         setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
@@ -40,7 +39,7 @@ export default function AyarlarPage() {
       const { error: salesError } = await supabase
         .from("sales")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
 
       if (salesError) {
         setMessage("Satislar silinemedi: " + salesError.message);
@@ -70,7 +69,7 @@ export default function AyarlarPage() {
       const { error: paymentsError } = await supabase
         .from("payments")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
 
       if (paymentsError) {
         setMessage("Odemeler silinemedi: " + paymentsError.message);
@@ -98,7 +97,7 @@ export default function AyarlarPage() {
       const { error: deleteProductsError } = await supabase
         .from("products")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
 
       if (deleteProductsError) {
         setMessage("Mevcut urunler silinemedi: " + deleteProductsError.message);
@@ -168,7 +167,7 @@ export default function AyarlarPage() {
       const { error: paymentsError } = await supabase
         .from("payments")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (paymentsError) {
         setMessage("Odemeler silinemedi: " + paymentsError.message);
         return;
@@ -177,7 +176,7 @@ export default function AyarlarPage() {
       const { error: saleItemsError } = await supabase
         .from("sale_items")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (saleItemsError) {
         setMessage("Satis kalemleri silinemedi: " + saleItemsError.message);
         return;
@@ -186,7 +185,7 @@ export default function AyarlarPage() {
       const { error: salesError } = await supabase
         .from("sales")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (salesError) {
         setMessage("Satislar silinemedi: " + salesError.message);
         return;
@@ -195,7 +194,7 @@ export default function AyarlarPage() {
       const { error: customersError } = await supabase
         .from("customers")
         .delete()
-        .neq("id", "");
+        .not("id", "is", null);
       if (customersError) {
         setMessage("Musteriler silinemedi: " + customersError.message);
         return;
