@@ -8,8 +8,19 @@ export default function AyarlarPage() {
   const [message, setMessage] = useState("");
   const [resetText, setResetText] = useState("");
 
+  const resetAllProductStocks = async () => {
+    const { error } = await supabase
+      .from("products")
+      .update({ stock: 0 })
+      .not("id", "is", null);
+
+    return error;
+  };
+
   const handleDeleteSales = async () => {
-    const ok = window.confirm("Tum satislar ve fis kalemleri silinsin mi?");
+    const ok = window.confirm(
+      "Tum satislar, fis kalemleri ve odemeler silinsin mi? Urunler korunacak, stoklar sifirlanacak."
+    );
     if (!ok) return;
 
     setLoading(true);
@@ -46,7 +57,17 @@ export default function AyarlarPage() {
         return;
       }
 
-      setMessage("Satislar ve odemeler temizlendi");
+      const productsStockResetError = await resetAllProductStocks();
+
+      if (productsStockResetError) {
+        setMessage(
+          "Satislar silindi ama urun stoklari sifirlanamadi: " +
+            productsStockResetError.message
+        );
+        return;
+      }
+
+      setMessage("Satislar, odemeler temizlendi ve urun stoklari sifirlandi");
 
       setTimeout(() => {
         window.location.href = "/";
@@ -105,31 +126,31 @@ export default function AyarlarPage() {
       }
 
       const demoProducts = [
-        { name: "Posetli pilic", price: 0, unit: "kg", active: true },
-        { name: "Acik pilic", price: 0, unit: "kg", active: true },
-        { name: "Acik 1500", price: 0, unit: "kg", active: true },
-        { name: "Acik 1300-1400", price: 0, unit: "kg", active: true },
-        { name: "Dokme Ciger", price: 0, unit: "kg", active: true },
-        { name: "Dokme Taslik", price: 0, unit: "kg", active: true },
-        { name: "Catal but", price: 0, unit: "kg", active: true },
-        { name: "Spesiel but", price: 0, unit: "kg", active: true },
-        { name: "Sarma", price: 0, unit: "kg", active: true },
-        { name: "Baget", price: 0, unit: "kg", active: true },
-        { name: "Kemiksiz but", price: 0, unit: "kg", active: true },
-        { name: "Izgara tava", price: 0, unit: "kg", active: true },
-        { name: "Derili bonfile", price: 0, unit: "kg", active: true },
-        { name: "Derisiz bonfile", price: 0, unit: "kg", active: true },
-        { name: "Muz gogus", price: 0, unit: "kg", active: true },
-        { name: "Tum gogus", price: 0, unit: "kg", active: true },
-        { name: "Kelebek", price: 0, unit: "kg", active: true },
-        { name: "Tum kanat", price: 0, unit: "kg", active: true },
-        { name: "Izgara kanat", price: 0, unit: "kg", active: true },
-        { name: "Yaprak kanat", price: 0, unit: "kg", active: true },
-        { name: "Ucsuz kanat", price: 0, unit: "kg", active: true },
-        { name: "Kafes", price: 0, unit: "kg", active: true },
-        { name: "Incik", price: 0, unit: "kg", active: true },
-        { name: "Parmak Bonfile", price: 0, unit: "kg", active: true },
-        { name: "Savurma", price: 0, unit: "kg", active: true },
+        { name: "Posetli pilic", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Acik pilic", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Acik 1500", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Acik 1300-1400", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Dokme Ciger", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Dokme Taslik", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Catal but", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Spesiel but", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Sarma", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Baget", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Kemiksiz but", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Izgara tava", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Derili bonfile", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Derisiz bonfile", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Muz gogus", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Tum gogus", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Kelebek", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Tum kanat", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Izgara kanat", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Yaprak kanat", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Ucsuz kanat", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Kafes", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Incik", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Parmak Bonfile", price: 0, unit: "kg", stock: 0, active: true },
+        { name: "Savurma", price: 0, unit: "kg", stock: 0, active: true },
       ];
 
       const { error: insertProductsError } = await supabase
@@ -156,7 +177,7 @@ export default function AyarlarPage() {
     }
 
     const ok = window.confirm(
-      "Musteriler, satislar ve odemeler silinsin mi? Urun listesi korunacak."
+      "Musteriler, satislar ve odemeler silinsin mi? Urunler korunacak, stoklar sifirlanacak."
     );
     if (!ok) return;
 
@@ -200,9 +221,19 @@ export default function AyarlarPage() {
         return;
       }
 
+      const productsStockResetError = await resetAllProductStocks();
+
+      if (productsStockResetError) {
+        setMessage(
+          "Veriler temizlendi ama urun stoklari sifirlanamadi: " +
+            productsStockResetError.message
+        );
+        return;
+      }
+
       setResetText("");
       setMessage(
-        "Musteriler, satislar ve odemeler temizlendi. Urun listesi korundu."
+        "Musteriler, satislar ve odemeler temizlendi. Urunler korundu, stoklar sifirlandi."
       );
 
       setTimeout(() => {
@@ -272,7 +303,8 @@ export default function AyarlarPage() {
               </h2>
 
               <p className="text-sm text-zinc-400 mb-3">
-                Musteriler, satislar ve odemeler silinir. Urun listesi korunur.
+                Musteriler, satislar ve odemeler silinir. Urunler korunur,
+                stoklar sifirlanir.
               </p>
 
               <input
