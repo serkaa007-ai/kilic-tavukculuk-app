@@ -71,7 +71,6 @@ export default function YeniSatisPage() {
   }, [price]);
 
   const total = useMemo(() => {
-    if (isNaN(kgNumber) || isNaN(priceNumber)) return 0;
     return kgNumber * priceNumber;
   }, [kgNumber, priceNumber]);
 
@@ -106,103 +105,28 @@ export default function YeniSatisPage() {
       return;
     }
 
-    const liveStock = Number(selectedProduct.stock || 0);
-
-    if (liveStock <= 0) {
-      setMessage("Bu urunun stogu yok");
-      return;
-    }
-
-    if (kgNumber > liveStock) {
-      setMessage(`Yetersiz stok. Mevcut stok: ${liveStock.toLocaleString("tr-TR")} ${selectedProduct.unit}`);
+    if (kgNumber > currentStock) {
+      setMessage(
+        `Yetersiz stok. Mevcut stok: ${currentStock.toLocaleString("tr-TR", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })} ${selectedProduct.unit}`
+      );
       return;
     }
 
     try {
       setLoading(true);
 
-      const { data: latestProduct, error: latestProductError } = await supabase
-        .from("products")
-        .select("id, stock")
-        .eq("id", selectedProductId)
-        .single();
+      const { error } = await supabase.rpc("create_sale_with_stock", {
+        p_customer_id: selectedCustomer,
+        p_product_id: selectedProductId,
+        p_quantity: kgNumber,
+        p_unit_price: priceNumber,
+      });
 
-      if (latestProductError || !latestProduct) {
-        setMessage("Urun tekrar kontrol edilemedi");
-        return;
-      }
-
-      const latestStock = Number(latestProduct.stock || 0);
-
-      if (kgNumber > latestStock) {
-        setMessage(`Yetersiz stok. Mevcut stok: ${latestStock.toLocaleString("tr-TR")} ${selectedProduct.unit}`);
-        await loadData();
-        return;
-      }
-
-      const { data: saleData, error: saleError } = await supabase
-        .from("sales")
-        .insert([
-          {
-            customer_id: selectedCustomer,
-            total_amount: total,
-            payment_status: "Bekliyor",
-          },
-        ])
-        .select()
-        .single();
-
-      if (saleError || !saleData) {
-        setMessage("Satis kaydedilemedi");
-        return;
-      }
-
-      const { error: itemError } = await supabase.from("sale_items").insert([
-        {
-          sale_id: saleData.id,
-          product_id: selectedProductId,
-          product_name: selectedProduct.name,
-          quantity: kgNumber,
-          unit_price: priceNumber,
-          total_price: total,
-        },
-      ]);
-
-      if (itemError) {
-        setMessage("Satis kalemi kaydedilemedi");
-        return;
-      }
-
-      const newStock = latestStock - kgNumber;
-
-      const { error: stockUpdateError } = await supabase
-        .from("products")
-        .update({
-          stock: newStock,
-        })
-        .eq("id", selectedProductId);
-
-      if (stockUpdateError) {
-        setMessage("Satis kaydedildi ama stok guncellenemedi");
-        return;
-      }
-
-      const selectedCustomerData = customers.find(
-        (c) => c.id === selectedCustomer
-      );
-      const currentBalance = Number(selectedCustomerData?.balance || 0);
-      const newBalance = currentBalance + total;
-
-      const { error: customerUpdateError } = await supabase
-        .from("customers")
-        .update({
-          balance: newBalance,
-          status: "Borclu",
-        })
-        .eq("id", selectedCustomer);
-
-      if (customerUpdateError) {
-        setMessage("Satis ve stok guncellendi ama bakiye guncellenemedi");
+      if (error) {
+        setMessage(error.message || "Satis kaydedilemedi");
         await loadData();
         return;
       }
@@ -232,7 +156,9 @@ export default function YeniSatisPage() {
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
                 Yeni Satis
               </h1>
-              <p className="text-zinc-300 mt-1">Musteri, urun ve stok kontrolu</p>
+              <p className="text-zinc-300 mt-1">
+                Musteri, urun ve stok kontrollu satis
+              </p>
             </div>
 
             <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
@@ -266,7 +192,12 @@ export default function YeniSatisPage() {
               <option value="">Urun sec</option>
               {products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} - Stok: {Number(product.stock || 0).toLocaleString("tr-TR")} {product.unit}
+                  {product.name} - Stok:{" "}
+                  {Number(product.stock || 0).toLocaleString("tr-TR", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  {product.unit}
                 </option>
               ))}
             </select>
