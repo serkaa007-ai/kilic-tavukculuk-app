@@ -2,6 +2,14 @@ import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 
+function parseBackupDateFromName(fileName: string) {
+  const match = fileName.match(/^(\d{4}-\d{2}-\d{2})-backup\.json$/);
+  if (!match) return null;
+
+  const date = new Date(`${match[1]}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function GET() {
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -34,22 +42,58 @@ export async function GET() {
     };
 
     const now = new Date();
-    const fileName = `daily/${now.toISOString().slice(0, 10)}-backup.json`;
+    const today = now.toISOString().slice(0, 10);
+    const fileName = `daily/${today}-backup.json`;
 
-    const { error } = await supabaseAdmin.storage
+    const { error: uploadError } = await supabaseAdmin.storage
       .from("backups")
       .upload(fileName, JSON.stringify(backup, null, 2), {
         contentType: "application/json",
         upsert: true,
       });
 
-    if (error) {
-      throw new Error(`storage: ${error.message}`);
+    if (uploadError) {
+      throw new Error(`storage upload: ${uploadError.message}`);
+    }
+
+    // 15 gunden eski yedekleri sil
+    const { data: files, error: listError } = await supabaseAdmin.storage
+      .from("backups")
+      .list("daily", {
+        limit: 100,
+        sortBy: { column: "name", order: "asc" },
+      });
+
+    if (listError) {
+      throw new Error(`storage list: ${listError.message}`);
+    }
+
+    const cutoff = new Date();
+    cutoff.setUTCDate(cutoff.getUTCDate() - 15);
+    cutoff.setUTCHours(0, 0, 0, 0);
+
+    const filesToDelete =
+      files
+        ?.filter((file) => {
+          const fileDate = parseBackupDateFromName(file.name);
+          return fileDate && fileDate < cutoff;
+        })
+        .map((file) => `daily/${file.name}`) ?? [];
+
+    if (filesToDelete.length > 0) {
+      const { error: removeError } = await supabaseAdmin.storage
+        .from("backups")
+        .remove(filesToDelete);
+
+      if (removeError) {
+        throw new Error(`storage remove: ${removeError.message}`);
+      }
     }
 
     return Response.json({
       ok: true,
       fileName,
+      deletedOldBackups: filesToDelete.length,
       createdAt: backup.createdAt,
     });
   } catch (error) {
