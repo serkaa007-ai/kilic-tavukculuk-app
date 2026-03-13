@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export default function AyarlarPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [resetText, setResetText] = useState("");
+  const [backupFile, setBackupFile] = useState<File | null>(null);
 
   const resetAllProductStocks = async () => {
     const { error } = await supabase
@@ -43,6 +44,57 @@ export default function AyarlarPage() {
       setMessage("Yedek basariyla indirildi");
     } catch {
       setMessage("Yedek alma sirasinda bir hata olustu");
+    }
+  }
+
+  function handleBackupFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setBackupFile(file);
+  }
+
+  async function handleRestoreBackup() {
+    if (!backupFile) {
+      setMessage("Once bir yedek dosyasi sec");
+      return;
+    }
+
+    const ok = window.confirm(
+      "Secilen yedek mevcut verilerin uzerine yazilacak. Devam edilsin mi?"
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const text = await backupFile.text();
+      const parsed = JSON.parse(text);
+
+      const res = await fetch("/api/restore-backup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(parsed),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        setMessage(data?.error || "Yedek geri yuklenemedi");
+        return;
+      }
+
+      setBackupFile(null);
+      setMessage("Yedek basariyla geri yuklendi");
+
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1200);
+    } catch {
+      setMessage("Dosya okunamadi veya JSON gecersiz");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -306,6 +358,27 @@ export default function AyarlarPage() {
                   className="w-full rounded-2xl bg-blue-600 p-4 font-semibold text-white disabled:opacity-60"
                 >
                   Yedek Al
+                </button>
+
+                <label className="block w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-sm cursor-pointer">
+                  <span className="block mb-2 text-zinc-300">
+                    Geri yuklemek icin JSON yedek sec
+                  </span>
+                  <input
+                    type="file"
+                    accept=".json,application/json"
+                    onChange={handleBackupFileChange}
+                    disabled={loading}
+                    className="block w-full text-sm text-zinc-300"
+                  />
+                </label>
+
+                <button
+                  onClick={handleRestoreBackup}
+                  disabled={loading || !backupFile}
+                  className="w-full rounded-2xl bg-emerald-600 p-4 font-semibold text-white disabled:opacity-60"
+                >
+                  Yedegi Geri Yukle
                 </button>
               </div>
             </div>
