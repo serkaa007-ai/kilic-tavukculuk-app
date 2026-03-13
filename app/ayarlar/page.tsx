@@ -280,7 +280,7 @@ export default function AyarlarPage() {
             <div>
               <p className="text-zinc-400 text-sm">Sistem yonetimi</p>
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
-                Ayarlar
+                Ayarlar 123
               </h1>
               <p className="text-zinc-300 mt-1">
                 Veri temizleme, demo yukleme ve yedek alma
