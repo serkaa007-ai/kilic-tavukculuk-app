@@ -1,7 +1,11 @@
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
+
     const [customers, products, sales, saleItems, payments] = await Promise.all([
       supabaseAdmin.from("customers").select("*"),
       supabaseAdmin.from("products").select("*"),
