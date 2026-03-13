@@ -14,6 +14,12 @@ export async function GET() {
       supabaseAdmin.from("payments").select("*"),
     ]);
 
+    if (customers.error) throw new Error(`customers: ${customers.error.message}`);
+    if (products.error) throw new Error(`products: ${products.error.message}`);
+    if (sales.error) throw new Error(`sales: ${sales.error.message}`);
+    if (saleItems.error) throw new Error(`sale_items: ${saleItems.error.message}`);
+    if (payments.error) throw new Error(`payments: ${payments.error.message}`);
+
     const backup = {
       createdAt: new Date().toISOString(),
       app: "kilic-tavukculuk",
@@ -38,7 +44,7 @@ export async function GET() {
       });
 
     if (error) {
-      return Response.json({ ok: false, error: error.message }, { status: 500 });
+      throw new Error(`storage: ${error.message}`);
     }
 
     return Response.json({
@@ -47,8 +53,11 @@ export async function GET() {
       createdAt: backup.createdAt,
     });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Bilinmeyen hata";
+
     return Response.json(
-      { ok: false, error: "Otomatik yedek alınamadı" },
+      { ok: false, error: message },
       { status: 500 }
     );
   }
