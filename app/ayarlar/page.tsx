@@ -17,6 +17,32 @@ export default function AyarlarPage() {
     return error;
   };
 
+  async function handleManualBackup() {
+    try {
+      const res = await fetch("/api/manual-backup");
+
+      if (!res.ok) {
+        setMessage("Yedek alinmadi");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `kilic-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      window.URL.revokeObjectURL(url);
+      setMessage("Yedek basariyla indirildi");
+    } catch {
+      setMessage("Yedek alma sirasinda bir hata olustu");
+    }
+  }
+
   const handleDeleteSales = async () => {
     const ok = window.confirm(
       "Tum satislar, fis kalemleri ve odemeler silinsin mi? Urunler korunacak, stoklar sifirlanacak."
@@ -257,7 +283,7 @@ export default function AyarlarPage() {
                 Ayarlar
               </h1>
               <p className="text-zinc-300 mt-1">
-                Veri temizleme ve demo yukleme
+                Veri temizleme, demo yukleme ve yedek alma
               </p>
             </div>
 
@@ -267,6 +293,20 @@ export default function AyarlarPage() {
           </div>
 
           <div className="mt-6 space-y-4">
+            <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
+              <h2 className="text-lg font-semibold mb-3">Yedekleme</h2>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleManualBackup}
+                  disabled={loading}
+                  className="w-full rounded-2xl bg-blue-600 p-4 font-semibold text-white disabled:opacity-60"
+                >
+                  Yedek Al
+                </button>
+              </div>
+            </div>
+
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
               <h2 className="text-lg font-semibold mb-3">Veri Temizleme</h2>
 
