@@ -33,12 +33,23 @@ export default function UrunlerPage() {
   const [message, setMessage] = useState("");
 
   const loadProducts = async () => {
-    const { data } = await supabase
-      .from("products")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    setProducts((data as Product[]) || []);
+      if (error) {
+        console.error("Ürünler yüklenemedi:", error);
+        setMessage(`Ürünler yüklenemedi: ${error.message}`);
+        return;
+      }
+
+      setProducts((data as Product[]) || []);
+    } catch (err) {
+      console.error("loadProducts hata:", err);
+      setMessage("Ürünler yüklenirken bir hata oluştu");
+    }
   };
 
   useEffect(() => {
@@ -56,7 +67,7 @@ export default function UrunlerPage() {
     setMessage("");
 
     if (!name.trim()) {
-      setMessage("Urun adi gir");
+      setMessage("Ürün adı gir");
       return;
     }
 
@@ -64,12 +75,12 @@ export default function UrunlerPage() {
     const stockNumber = parseFloat((stock || "0").replace(",", "."));
 
     if (isNaN(priceNumber) || priceNumber < 0) {
-      setMessage("Gecerli fiyat gir");
+      setMessage("Geçerli fiyat gir");
       return;
     }
 
     if (isNaN(stockNumber) || stockNumber < 0) {
-      setMessage("Gecerli stok gir");
+      setMessage("Geçerli stok gir");
       return;
     }
 
@@ -87,7 +98,8 @@ export default function UrunlerPage() {
       ]);
 
       if (error) {
-        setMessage("Urun eklenemedi");
+        console.error("Ürün ekleme hatası:", error);
+        setMessage(`Ürün eklenemedi: ${error.message}`);
         return;
       }
 
@@ -95,10 +107,11 @@ export default function UrunlerPage() {
       setPrice("");
       setUnit("kg");
       setStock("");
-      setMessage("Urun basariyla eklendi");
+      setMessage("Ürün başarıyla eklendi");
       await loadProducts();
-    } catch {
-      setMessage("Bir hata olustu");
+    } catch (err) {
+      console.error("handleAddProduct hata:", err);
+      setMessage("Bir hata oluştu");
     } finally {
       setLoading(false);
     }
@@ -135,7 +148,7 @@ export default function UrunlerPage() {
     setMessage("");
 
     if (!editName.trim()) {
-      setMessage("Urun adi gir");
+      setMessage("Ürün adı gir");
       return;
     }
 
@@ -143,12 +156,12 @@ export default function UrunlerPage() {
     const stockNumber = parseFloat(editStock.replace(",", "."));
 
     if (isNaN(priceNumber) || priceNumber < 0) {
-      setMessage("Gecerli fiyat gir");
+      setMessage("Geçerli fiyat gir");
       return;
     }
 
     if (isNaN(stockNumber) || stockNumber < 0) {
-      setMessage("Gecerli stok gir");
+      setMessage("Geçerli stok gir");
       return;
     }
 
@@ -167,24 +180,26 @@ export default function UrunlerPage() {
         .eq("id", editingId);
 
       if (error) {
-        setMessage("Urun guncellenemedi");
+        console.error("Ürün güncelleme hatası:", error);
+        setMessage(`Ürün güncellenemedi: ${error.message}`);
         return;
       }
 
-      setMessage("Urun basariyla guncellendi");
+      setMessage("Ürün başarıyla güncellendi");
       const currentId = editingId;
       cancelEdit();
       await loadProducts();
       setOpenProductId(currentId);
-    } catch {
-      setMessage("Bir hata olustu");
+    } catch (err) {
+      console.error("handleUpdateProduct hata:", err);
+      setMessage("Bir hata oluştu");
     } finally {
       setLoading(false);
     }
   };
 
   const handleDeleteProduct = async (id: string) => {
-    const ok = window.confirm("Bu urun silinsin mi?");
+    const ok = window.confirm("Bu ürün silinsin mi?");
     if (!ok) return;
 
     setMessage("");
@@ -192,12 +207,19 @@ export default function UrunlerPage() {
     try {
       setLoading(true);
 
-      const { error } = await supabase.from("products").delete().eq("id", id);
+      const { data, error } = await supabase
+        .from("products")
+        .delete()
+        .eq("id", id)
+        .select();
 
       if (error) {
-        setMessage("Urun silinemedi");
+        console.error("Ürün silme hatası:", error);
+        setMessage(`Ürün silinemedi: ${error.message}`);
         return;
       }
+
+      console.log("Silinen ürün:", data);
 
       if (editingId === id) {
         cancelEdit();
@@ -207,10 +229,11 @@ export default function UrunlerPage() {
         setOpenProductId(null);
       }
 
-      setMessage("Urun silindi");
-      await loadProducts();
-    } catch {
-      setMessage("Bir hata olustu");
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      setMessage("Ürün silindi");
+    } catch (err) {
+      console.error("handleDeleteProduct hata:", err);
+      setMessage("Bir hata oluştu");
     } finally {
       setLoading(false);
     }
@@ -230,11 +253,13 @@ export default function UrunlerPage() {
         <div className="px-5 pt-6 pb-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-zinc-400 text-sm">Urun yonetimi</p>
+              <p className="text-zinc-400 text-sm">Ürün yönetimi</p>
               <h1 className="text-3xl font-bold tracking-tight text-red-500">
-                Urunler
+                Ürünler
               </h1>
-              <p className="text-zinc-300 mt-1">Ekle, duzenle, sil, stok takip et</p>
+              <p className="text-zinc-300 mt-1">
+                Ekle, düzenle, sil, stok takip et
+              </p>
             </div>
 
             <div className="h-12 w-12 rounded-2xl bg-red-600 flex items-center justify-center text-xl font-bold shadow-lg shadow-red-900/30">
@@ -243,13 +268,13 @@ export default function UrunlerPage() {
           </div>
 
           <div className="mt-6 rounded-3xl bg-zinc-900 border border-zinc-800 p-4 space-y-3">
-            <h2 className="text-lg font-semibold">Yeni Urun Ekle</h2>
+            <h2 className="text-lg font-semibold">Yeni Ürün Ekle</h2>
 
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Urun adi"
+              placeholder="Ürün adı"
               className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
             />
 
@@ -275,7 +300,7 @@ export default function UrunlerPage() {
               type="text"
               value={stock}
               onChange={(e) => setStock(e.target.value)}
-              placeholder="Stok miktari"
+              placeholder="Stok miktarı"
               className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
             />
 
@@ -284,7 +309,7 @@ export default function UrunlerPage() {
               disabled={loading}
               className="w-full rounded-2xl bg-white text-black p-4 font-semibold disabled:opacity-60"
             >
-              {loading ? "Isleniyor..." : "+ Yeni Urun Ekle"}
+              {loading ? "İşleniyor..." : "+ Yeni Ürün Ekle"}
             </button>
           </div>
 
@@ -296,7 +321,7 @@ export default function UrunlerPage() {
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div className="rounded-3xl bg-zinc-900 border border-zinc-800 p-4">
-              <p className="text-xs text-zinc-400">Toplam urun</p>
+              <p className="text-xs text-zinc-400">Toplam ürün</p>
               <h2 className="text-xl font-bold mt-2">{products.length}</h2>
             </div>
 
@@ -343,11 +368,13 @@ export default function UrunlerPage() {
                         <h2 className="text-lg font-semibold">{product.name}</h2>
 
                         <p className="text-sm text-zinc-400 mt-1">
-                          {formatNumber(Number(product.price || 0))} TL / {product.unit || "kg"}
+                          {formatNumber(Number(product.price || 0))} TL /{" "}
+                          {product.unit || "kg"}
                         </p>
 
                         <p className="text-sm text-yellow-400 mt-1">
-                          Stok: {formatNumber(Number(product.stock || 0))} {product.unit || "kg"}
+                          Stok: {formatNumber(Number(product.stock || 0))}{" "}
+                          {product.unit || "kg"}
                         </p>
                       </div>
 
@@ -373,13 +400,13 @@ export default function UrunlerPage() {
                     <div className="px-4 pb-4">
                       {editingId === product.id ? (
                         <div className="rounded-3xl bg-zinc-950 border border-zinc-800 p-4 space-y-3 mt-2">
-                          <h2 className="text-lg font-semibold">Urun Duzenle</h2>
+                          <h2 className="text-lg font-semibold">Ürün Düzenle</h2>
 
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            placeholder="Urun adi"
+                            placeholder="Ürün adı"
                             className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
                           />
 
@@ -405,7 +432,7 @@ export default function UrunlerPage() {
                             type="text"
                             value={editStock}
                             onChange={(e) => setEditStock(e.target.value)}
-                            placeholder="Stok miktari"
+                            placeholder="Stok miktarı"
                             className="w-full rounded-2xl bg-zinc-800 border border-zinc-700 p-4 text-white outline-none"
                           />
 
@@ -426,7 +453,7 @@ export default function UrunlerPage() {
                               disabled={loading}
                               className="rounded-2xl bg-red-600 p-4 font-semibold disabled:opacity-60"
                             >
-                              Guncelle
+                              Güncelle
                             </button>
 
                             <button
@@ -434,7 +461,7 @@ export default function UrunlerPage() {
                               disabled={loading}
                               className="rounded-2xl bg-zinc-800 border border-zinc-700 p-4 font-semibold disabled:opacity-60"
                             >
-                              Vazgec
+                              Vazgeç
                             </button>
                           </div>
                         </div>
@@ -443,7 +470,8 @@ export default function UrunlerPage() {
                           <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4">
                             <p className="text-sm text-zinc-400">Mevcut stok</p>
                             <p className="text-lg font-semibold text-yellow-400 mt-1">
-                              {formatNumber(Number(product.stock || 0))} {product.unit || "kg"}
+                              {formatNumber(Number(product.stock || 0))}{" "}
+                              {product.unit || "kg"}
                             </p>
                           </div>
 
@@ -452,7 +480,7 @@ export default function UrunlerPage() {
                               onClick={() => startEdit(product)}
                               className="rounded-2xl bg-white text-black px-4 py-3 text-sm font-semibold"
                             >
-                              Duzenle
+                              Düzenle
                             </button>
 
                             <button
