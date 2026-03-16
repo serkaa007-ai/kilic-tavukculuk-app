@@ -28,6 +28,8 @@ export default function UrunlerPage() {
   const [editActive, setEditActive] = useState(true);
 
   const [openProductId, setOpenProductId] = useState<string | null>(null);
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [deleteProductName, setDeleteProductName] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -198,9 +200,22 @@ export default function UrunlerPage() {
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
-    const ok = window.confirm("Bu ürün silinsin mi?");
-    if (!ok) return;
+  const askDeleteProduct = (product: Product) => {
+    setDeleteProductId(product.id);
+    setDeleteProductName(product.name || "");
+    setMessage("");
+  };
+
+  const closeDeleteModal = () => {
+    if (loading) return;
+    setDeleteProductId(null);
+    setDeleteProductName("");
+  };
+
+  const confirmDeleteProduct = async () => {
+    if (!deleteProductId) return;
+
+    const id = deleteProductId;
 
     setMessage("");
 
@@ -231,8 +246,10 @@ export default function UrunlerPage() {
 
       setProducts((prev) => prev.filter((p) => p.id !== id));
       setMessage("Ürün silindi");
+      setDeleteProductId(null);
+      setDeleteProductName("");
     } catch (err) {
-      console.error("handleDeleteProduct hata:", err);
+      console.error("confirmDeleteProduct hata:", err);
       setMessage("Bir hata oluştu");
     } finally {
       setLoading(false);
@@ -484,7 +501,7 @@ export default function UrunlerPage() {
                             </button>
 
                             <button
-                              onClick={() => handleDeleteProduct(product.id)}
+                              onClick={() => askDeleteProduct(product)}
                               className="rounded-2xl bg-zinc-800 border border-zinc-700 px-4 py-3 text-sm font-semibold"
                             >
                               Sil
@@ -500,6 +517,39 @@ export default function UrunlerPage() {
           </div>
         </div>
       </div>
+
+      {deleteProductId && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-sm rounded-3xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+            <h3 className="text-xl font-bold text-white">Ürünü sil</h3>
+            <p className="mt-2 text-sm text-zinc-300">
+              <span className="font-semibold text-white">{deleteProductName}</span>{" "}
+              adlı ürün silinsin mi?
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              Bu işlem geri alınamaz.
+            </p>
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <button
+                onClick={closeDeleteModal}
+                disabled={loading}
+                className="rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3 font-semibold text-white disabled:opacity-60"
+              >
+                Vazgeç
+              </button>
+
+              <button
+                onClick={confirmDeleteProduct}
+                disabled={loading}
+                className="rounded-2xl bg-red-600 px-4 py-3 font-semibold text-white disabled:opacity-60"
+              >
+                {loading ? "Siliniyor..." : "Evet, sil"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
