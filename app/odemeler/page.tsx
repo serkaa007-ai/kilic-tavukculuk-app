@@ -43,6 +43,7 @@ export default function OdemelerPage() {
     const { data } = await supabase
       .from("customers")
       .select("id, name, balance, status")
+      .eq("active", true)
       .order("name", { ascending: true });
 
     setCustomers((data as Customer[]) || []);
@@ -58,6 +59,7 @@ export default function OdemelerPage() {
       .from("sales")
       .select("id, total_amount, payment_status, created_at")
       .eq("customer_id", customerId)
+      .eq("active", true)
       .order("created_at", { ascending: false });
 
     setSales((data as Sale[]) || []);
@@ -101,8 +103,98 @@ export default function OdemelerPage() {
 
   const selectedSaleTotal = Number(selectedSaleData?.total_amount || 0);
   const remainingForSelectedSale = Math.max(selectedSaleTotal - paidForSelectedSale, 0);
-
   const remainingCustomerBalance = Number(selectedCustomerData?.balance || 0);
+
+  const recalculateSaleStatus = async (saleId: string) => {
+    const { data: saleData, error: saleFetchError } = await supabase
+      .from("sales")
+      .select("total_amount")
+      .eq("id", saleId)
+      .single();
+
+    if (saleFetchError) {
+      throw new Error("Satis bilgisi alinamadi");
+    }
+
+    const { data: salePayments, error: salePaymentsError } = await supabase
+      .from("payments")
+      .select("amount")
+      .eq("sale_id", saleId);
+
+    if (salePaymentsError) {
+      throw new Error("Satis odemeleri alinamadi");
+    }
+
+    const saleTotal = Number(saleData?.total_amount || 0);
+    const totalPaidForSale = (salePayments || []).reduce(
+      (sum, payment) => sum + Number(payment.amount || 0),
+      0
+    );
+
+    const newSaleStatus = totalPaidForSale >= saleTotal ? "Odendi" : "Bekliyor";
+
+    const { error: saleUpdateError } = await supabase
+      .from("sales")
+      .update({ payment_status: newSaleStatus })
+      .eq("id", saleId);
+
+    if (saleUpdateError) {
+      throw new Error("Satis durumu guncellenemedi");
+    }
+  };
+
+  const recalculateCustomerBalance = async (customerId: string) => {
+    const { data: customerSales, error: salesError } = await supabase
+      .from("sales")
+      .select("id, total_amount")
+      .eq("customer_id", customerId)
+      .eq("active", true);
+
+    if (salesError) {
+      throw new Error("Musteri satislari alinamadi");
+    }
+
+    const salesList = customerSales || [];
+    const totalSalesAmount = salesList.reduce(
+      (sum, sale) => sum + Number(sale.total_amount || 0),
+      0
+    );
+
+    let totalPaymentsAmount = 0;
+
+    if (salesList.length > 0) {
+      const saleIds = salesList.map((sale) => sale.id);
+
+      const { data: allPayments, error: paymentsError } = await supabase
+        .from("payments")
+        .select("amount, sale_id")
+        .in("sale_id", saleIds);
+
+      if (paymentsError) {
+        throw new Error("Musteri odemeleri alinamadi");
+      }
+
+      totalPaymentsAmount = (allPayments || []).reduce(
+        (sum, payment) => sum + Number(payment.amount || 0),
+        0
+      );
+    }
+
+    const newBalance = Math.max(totalSalesAmount - totalPaymentsAmount, 0);
+    const newStatus = newBalance > 0 ? "Borclu" : "Temiz";
+
+    const { error: customerUpdateError } = await supabase
+      .from("customers")
+      .update({
+        balance: newBalance,
+        status: newStatus,
+      })
+      .eq("id", customerId);
+
+    if (customerUpdateError) {
+      throw new Error("Musteri bakiyesi guncellenemedi");
+    }
+  };
 
   const handlePayment = async () => {
     setMessage("");
@@ -143,43 +235,12 @@ export default function OdemelerPage() {
       ]);
 
       if (paymentError) {
-        setMessage("Odeme kaydedilemedi");
+        setMessage(paymentError.message || "Odeme kaydedilemedi");
         return;
       }
 
-      const currentCustomerBalance = Number(selectedCustomerData?.balance || 0);
-      const newCustomerBalance = Math.max(currentCustomerBalance - amountNumber, 0);
-
-      const customerStatus = newCustomerBalance > 0 ? "Borclu" : "Temiz";
-
-      const { error: customerError } = await supabase
-        .from("customers")
-        .update({
-          balance: newCustomerBalance,
-          status: customerStatus,
-        })
-        .eq("id", selectedCustomer);
-
-      if (customerError) {
-        setMessage("Musteri bakiyesi guncellenemedi");
-        return;
-      }
-
-      const newPaidTotal = paidForSelectedSale + amountNumber;
-      const saleStatus =
-        newPaidTotal >= selectedSaleTotal ? "Odendi" : "Bekliyor";
-
-      const { error: saleError } = await supabase
-        .from("sales")
-        .update({
-          payment_status: saleStatus,
-        })
-        .eq("id", selectedSale);
-
-      if (saleError) {
-        setMessage("Satis durumu guncellenemedi");
-        return;
-      }
+      await recalculateSaleStatus(selectedSale);
+      await recalculateCustomerBalance(selectedCustomer);
 
       setAmount("");
       setNote("");
@@ -188,8 +249,12 @@ export default function OdemelerPage() {
       await loadCustomers();
       await loadSales(selectedCustomer);
       await loadPayments(selectedSale);
-    } catch {
-      setMessage("Bir hata olustu");
+    } catch (error) {
+      if (error instanceof Error) {
+        setMessage(error.message);
+      } else {
+        setMessage("Bir hata olustu");
+      }
     } finally {
       setLoading(false);
     }
