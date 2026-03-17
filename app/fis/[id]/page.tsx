@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 type SaleItem = {
   product_name: string | null;
@@ -40,6 +42,8 @@ export default function FisDetayPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+
+  const receiptRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadSale = async () => {
@@ -122,85 +126,83 @@ export default function FisDetayPage() {
   const totalAmount = Number(sale?.total_amount || 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
 
-  const normalizePhoneNumber = (phone: string) => {
-    let cleaned = phone.replace(/\D/g, "");
+  const generateReceiptPdf = async () => {
+    if (!receiptRef.current || !sale) return null;
 
-    if (cleaned.startsWith("0")) {
-      cleaned = "90" + cleaned.slice(1);
+    const canvas = await html2canvas(receiptRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+
+    const imgData = canvas.toDataURL("image/png");
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
     }
 
-    if (!cleaned.startsWith("90")) {
-      cleaned = "90" + cleaned;
-    }
+    const pdfBlob = pdf.output("blob");
+    const fileName = `fis-${sale.id}.pdf`;
 
-    return cleaned;
+    return new File([pdfBlob], fileName, { type: "application/pdf" });
   };
 
-  const buildWhatsappReceiptText = () => {
-    if (!sale) return "";
+  const handleShareReceipt = async () => {
+    try {
+      setMessage("");
 
-    const customerName = sale.customers?.name || "-";
-    const customerPhone = sale.customers?.phone || "-";
-    const customerAddress = sale.customers?.address || "-";
-    const saleDate = new Date(sale.created_at).toLocaleString("tr-TR");
+      const pdfFile = await generateReceiptPdf();
 
-    const itemsText =
-      sale.sale_items?.length > 0
-        ? sale.sale_items
-            .map((item, index) => {
-              const productName = item.product_name || "-";
-              const quantity = Number(item.quantity || 0).toLocaleString("tr-TR", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
-              const unitPrice = formatMoney(Number(item.unit_price || 0));
-              const totalPrice = formatMoney(Number(item.total_price || 0));
+      if (!pdfFile) {
+        setMessage("Fiş PDF oluşturulamadı");
+        return;
+      }
 
-              return `${index + 1}. ${productName}
-Miktar: ${quantity} kg
-Birim Fiyat: ${unitPrice} TL
-Tutar: ${totalPrice} TL`;
-            })
-            .join("\n\n")
-        : "Ürün bilgisi bulunamadı";
+      const canUseNativeShare =
+        typeof navigator !== "undefined" &&
+        !!navigator.share &&
+        !!navigator.canShare &&
+        navigator.canShare({ files: [pdfFile] });
 
-    return `KILIÇ TAVUKÇULUK
-Satış Fişi
+      if (canUseNativeShare) {
+        await navigator.share({
+          title: "Satış Fişi",
+          text: `${sale?.customers?.name || "Müşteri"} için satış fişi`,
+          files: [pdfFile],
+        });
+        return;
+      }
 
-Müşteri: ${customerName}
-Telefon: ${customerPhone}
-Adres: ${customerAddress}
-Tarih: ${saleDate}
-Ödeme Durumu: ${sale.payment_status || "-"}
+      const fileUrl = URL.createObjectURL(pdfFile);
+      const link = document.createElement("a");
+      link.href = fileUrl;
+      link.download = pdfFile.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(fileUrl);
 
-Ürünler:
-${itemsText}
-
-Genel Toplam: ${formatMoney(totalAmount)} TL
-Ödenen Tutar: ${formatMoney(totalPaid)} TL
-Kalan Borç: ${formatMoney(remainingAmount)} TL
-
-Teşekkür ederiz.`;
-  };
-
-  const handleSendWhatsapp = () => {
-    if (!sale) {
-      setMessage("Fiş bilgisi bulunamadı");
-      return;
+      setMessage("Fiş PDF olarak indirildi. WhatsApp'tan belge olarak gönderebilirsin.");
+    } catch (error) {
+      console.error("Fiş paylaşma hatası:", error);
+      setMessage("Fiş paylaşılırken bir hata oluştu");
     }
-
-    const rawPhone = sale.customers?.phone || "";
-
-    if (!rawPhone.trim()) {
-      setMessage("Müşterinin telefon numarası kayıtlı değil");
-      return;
-    }
-
-    const phone = normalizePhoneNumber(rawPhone);
-    const text = buildWhatsappReceiptText();
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-
-    window.open(url, "_blank");
   };
 
   if (loading) {
@@ -233,10 +235,10 @@ Teşekkür ederiz.`;
 
           <div className="flex gap-2">
             <button
-              onClick={handleSendWhatsapp}
+              onClick={handleShareReceipt}
               className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold"
             >
-              WhatsApp Gönder
+              Fişi Paylaş
             </button>
 
             <button
@@ -248,7 +250,10 @@ Teşekkür ederiz.`;
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none">
+        <div
+          ref={receiptRef}
+          className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none"
+        >
           <div className="text-center border-b pb-4">
             <div className="flex justify-center mb-3">
               <div className="h-20 w-20 rounded-2xl overflow-hidden bg-white border border-zinc-200 flex items-center justify-center">
@@ -353,7 +358,11 @@ Teşekkür ederiz.`;
 
               <div className="flex items-center justify-between border-t pt-3 text-lg font-bold">
                 <span>Kalan Borç</span>
-                <span className={remainingAmount > 0 ? "text-red-600" : "text-green-600"}>
+                <span
+                  className={
+                    remainingAmount > 0 ? "text-red-600" : "text-green-600"
+                  }
+                >
                   {formatMoney(remainingAmount)} TL
                 </span>
               </div>
