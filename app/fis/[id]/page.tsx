@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toBlob } from "html-to-image";
@@ -136,6 +135,7 @@ export default function FisDetayPage() {
         cacheBust: true,
         pixelRatio: 2,
         backgroundColor: "#ffffff",
+        skipFonts: true,
       });
 
       if (!blob) {
@@ -160,7 +160,6 @@ export default function FisDetayPage() {
       if (canShareFile) {
         await nav.share({
           title: "Satış Fişi",
-          text: `${sale.customers?.name || "Müşteri"} için satış fişi`,
           files: [file],
         });
         return;
@@ -232,25 +231,49 @@ export default function FisDetayPage() {
         <div
           ref={receiptRef}
           className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none"
-          style={{ backgroundColor: "#ffffff", color: "#000000" }}
+          style={{
+            backgroundColor: "#ffffff",
+            color: "#000000",
+            fontFamily:
+              'Arial, Helvetica, "Segoe UI", sans-serif',
+          }}
         >
-          <div className="text-center border-b pb-4">
-            <div className="flex justify-center mb-3">
-              <div className="h-20 w-20 rounded-2xl overflow-hidden bg-white border border-zinc-200 flex items-center justify-center">
-                <Image
-                  src="/kilic-logo.png"
-                  alt="Kılıç Tavukçuluk Logo"
-                  width={80}
-                  height={80}
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
+          <div
+            className="text-center"
+            style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 16 }}
+          >
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                margin: "0 auto 12px auto",
+                borderRadius: 16,
+                overflow: "hidden",
+                backgroundColor: "#ffffff",
+                border: "1px solid #e5e7eb",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <img
+                src="/kilic-logo.png"
+                alt="Kılıç Tavukçuluk Logo"
+                width={80}
+                height={80}
+                style={{ objectFit: "contain", display: "block" }}
+              />
             </div>
 
-            <h1 className="text-3xl font-bold">Kılıç Tavukçuluk</h1>
-            <p className="text-sm text-zinc-500 mt-1">Satış Fişi</p>
-            <p className="text-sm text-zinc-500 mt-1">0507 895 72 70</p>
+            <h1 style={{ fontSize: 30, fontWeight: 700, margin: 0 }}>
+              Kılıç Tavukçuluk
+            </h1>
+            <p style={{ fontSize: 14, color: "#71717a", marginTop: 4 }}>
+              Satış Fişi
+            </p>
+            <p style={{ fontSize: 14, color: "#71717a", marginTop: 4 }}>
+              0507 895 72 70
+            </p>
           </div>
 
           {message && (
