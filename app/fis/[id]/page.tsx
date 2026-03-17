@@ -122,6 +122,87 @@ export default function FisDetayPage() {
   const totalAmount = Number(sale?.total_amount || 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
 
+  const normalizePhoneNumber = (phone: string) => {
+    let cleaned = phone.replace(/\D/g, "");
+
+    if (cleaned.startsWith("0")) {
+      cleaned = "90" + cleaned.slice(1);
+    }
+
+    if (!cleaned.startsWith("90")) {
+      cleaned = "90" + cleaned;
+    }
+
+    return cleaned;
+  };
+
+  const buildWhatsappReceiptText = () => {
+    if (!sale) return "";
+
+    const customerName = sale.customers?.name || "-";
+    const customerPhone = sale.customers?.phone || "-";
+    const customerAddress = sale.customers?.address || "-";
+    const saleDate = new Date(sale.created_at).toLocaleString("tr-TR");
+
+    const itemsText =
+      sale.sale_items?.length > 0
+        ? sale.sale_items
+            .map((item, index) => {
+              const productName = item.product_name || "-";
+              const quantity = Number(item.quantity || 0).toLocaleString("tr-TR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              });
+              const unitPrice = formatMoney(Number(item.unit_price || 0));
+              const totalPrice = formatMoney(Number(item.total_price || 0));
+
+              return `${index + 1}. ${productName}
+Miktar: ${quantity} kg
+Birim Fiyat: ${unitPrice} TL
+Tutar: ${totalPrice} TL`;
+            })
+            .join("\n\n")
+        : "Ürün bilgisi bulunamadı";
+
+    return `KILIÇ TAVUKÇULUK
+Satış Fişi
+
+Müşteri: ${customerName}
+Telefon: ${customerPhone}
+Adres: ${customerAddress}
+Tarih: ${saleDate}
+Ödeme Durumu: ${sale.payment_status || "-"}
+
+Ürünler:
+${itemsText}
+
+Genel Toplam: ${formatMoney(totalAmount)} TL
+Ödenen Tutar: ${formatMoney(totalPaid)} TL
+Kalan Borç: ${formatMoney(remainingAmount)} TL
+
+Teşekkür ederiz.`;
+  };
+
+  const handleSendWhatsapp = () => {
+    if (!sale) {
+      setMessage("Fiş bilgisi bulunamadı");
+      return;
+    }
+
+    const rawPhone = sale.customers?.phone || "";
+
+    if (!rawPhone.trim()) {
+      setMessage("Müşterinin telefon numarası kayıtlı değil");
+      return;
+    }
+
+    const phone = normalizePhoneNumber(rawPhone);
+    const text = buildWhatsappReceiptText();
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+
+    window.open(url, "_blank");
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-white text-black p-6">
@@ -142,7 +223,7 @@ export default function FisDetayPage() {
   return (
     <main className="min-h-screen bg-zinc-100 text-black p-4 print:bg-white">
       <div className="max-w-2xl mx-auto">
-        <div className="flex justify-between mb-4 print:hidden">
+        <div className="flex flex-wrap justify-between gap-2 mb-4 print:hidden">
           <Link
             href="/gecmis-fisler"
             className="bg-zinc-800 text-white px-4 py-2 rounded-xl font-semibold"
@@ -150,12 +231,21 @@ export default function FisDetayPage() {
             Geri Dön
           </Link>
 
-          <button
-            onClick={() => window.print()}
-            className="bg-black text-white px-4 py-2 rounded-xl font-semibold"
-          >
-            Yazdır / PDF
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handleSendWhatsapp}
+              className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold"
+            >
+              WhatsApp Gönder
+            </button>
+
+            <button
+              onClick={() => window.print()}
+              className="bg-black text-white px-4 py-2 rounded-xl font-semibold"
+            >
+              Yazdır / PDF
+            </button>
+          </div>
         </div>
 
         <div className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none">
@@ -230,7 +320,8 @@ export default function FisDetayPage() {
                       {Number(item.quantity || 0).toLocaleString("tr-TR", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
-                      })}
+                      })}{" "}
+                      kg
                     </td>
                     <td className="p-3 text-right">
                       {formatMoney(Number(item.unit_price || 0))} TL
