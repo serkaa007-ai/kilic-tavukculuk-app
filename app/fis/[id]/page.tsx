@@ -6,7 +6,6 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
 
 type SaleItem = {
   product_name: string | null;
@@ -76,7 +75,6 @@ export default function FisDetayPage() {
           .single();
 
         if (saleError) {
-          console.error("Satış çekilemedi:", saleError);
           setMessage(`Satış bilgisi alınamadı: ${saleError.message}`);
           setSale(null);
           setPayments([]);
@@ -92,7 +90,6 @@ export default function FisDetayPage() {
           .order("created_at", { ascending: true });
 
         if (paymentError) {
-          console.error("Ödemeler çekilemedi:", paymentError);
           setMessage(`Ödeme bilgisi alınamadı: ${paymentError.message}`);
           setPayments([]);
           return;
@@ -126,82 +123,71 @@ export default function FisDetayPage() {
   const totalAmount = Number(sale?.total_amount || 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
 
-  const generateReceiptPdf = async () => {
+  const generateReceiptImageFile = async () => {
     if (!receiptRef.current || !sale) return null;
 
     const canvas = await html2canvas(receiptRef.current, {
       scale: 2,
       useCORS: true,
       backgroundColor: "#ffffff",
+      logging: false,
+      allowTaint: true,
     });
 
-    const imgData = canvas.toDataURL("image/png");
+    const blob: Blob | null = await new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), "image/png", 1);
+    });
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
+    if (!blob) return null;
 
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    let heightLeft = imgHeight;
-    let position = 0;
-
-    pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-    }
-
-    const pdfBlob = pdf.output("blob");
-    const fileName = `fis-${sale.id}.pdf`;
-
-    return new File([pdfBlob], fileName, { type: "application/pdf" });
+    return new File([blob], `fis-${sale.id}.png`, { type: "image/png" });
   };
 
   const handleShareReceipt = async () => {
     try {
       setMessage("");
 
-      const pdfFile = await generateReceiptPdf();
+      const imageFile = await generateReceiptImageFile();
 
-      if (!pdfFile) {
-        setMessage("Fiş PDF oluşturulamadı");
+      if (!imageFile) {
+        setMessage("Fiş görseli oluşturulamadı");
         return;
       }
 
-      const canUseNativeShare =
-        typeof navigator !== "undefined" &&
-        !!navigator.share &&
-        !!navigator.canShare &&
-        navigator.canShare({ files: [pdfFile] });
+      const nav = navigator as Navigator & {
+        canShare?: (data?: ShareData) => boolean;
+      };
 
-      if (canUseNativeShare) {
-        await navigator.share({
+      const canNativeShare =
+        typeof nav !== "undefined" &&
+        typeof nav.share === "function" &&
+        typeof nav.canShare === "function" &&
+        nav.canShare({ files: [imageFile] });
+
+      if (canNativeShare) {
+        await nav.share({
           title: "Satış Fişi",
           text: `${sale?.customers?.name || "Müşteri"} için satış fişi`,
-          files: [pdfFile],
+          files: [imageFile],
         });
         return;
       }
 
-      const fileUrl = URL.createObjectURL(pdfFile);
+      const imageUrl = URL.createObjectURL(imageFile);
       const link = document.createElement("a");
-      link.href = fileUrl;
-      link.download = pdfFile.name;
+      link.href = imageUrl;
+      link.download = imageFile.name;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(fileUrl);
+      URL.revokeObjectURL(imageUrl);
 
-      setMessage("Fiş PDF olarak indirildi. WhatsApp'tan belge olarak gönderebilirsin.");
+      setMessage("Fiş görsel olarak indirildi. WhatsApp'tan görsel olarak gönderebilirsin.");
     } catch (error) {
       console.error("Fiş paylaşma hatası:", error);
-      setMessage("Fiş paylaşılırken bir hata oluştu");
+      const errorMessage =
+        error instanceof Error ? error.message : "Bilinmeyen hata";
+      setMessage(`Fiş paylaşılırken hata oluştu: ${errorMessage}`);
     }
   };
 
@@ -263,6 +249,7 @@ export default function FisDetayPage() {
                   width={80}
                   height={80}
                   className="object-contain"
+                  unoptimized
                 />
               </div>
             </div>
