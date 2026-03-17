@@ -10,6 +10,7 @@ type Sale = {
   total_amount: number | null;
   payment_status: string | null;
   created_at: string;
+  active?: boolean | null;
 };
 
 type Payment = {
@@ -30,37 +31,26 @@ export default function Home() {
     try {
       setLoading(true);
 
-      const [
-        salesRes,
-        paymentsRes,
-        customersRes,
-        productsRes,
-      ] = await Promise.all([
+      const [salesRes, customersRes, productsRes] = await Promise.all([
         supabase
           .from("sales")
-          .select("id, total_amount, payment_status, created_at")
-          .order("created_at", { ascending: false }),
-
-        supabase
-          .from("payments")
-          .select("id, sale_id, amount, created_at")
+          .select("id, total_amount, payment_status, created_at, active")
+          .eq("active", true)
           .order("created_at", { ascending: false }),
 
         supabase
           .from("customers")
-          .select("*", { count: "exact", head: true }),
+          .select("*", { count: "exact", head: true })
+          .eq("active", true),
 
         supabase
           .from("products")
-          .select("*", { count: "exact", head: true }),
+          .select("*", { count: "exact", head: true })
+          .eq("active", true),
       ]);
 
       if (salesRes.error) {
         console.error("Satışlar yüklenemedi:", salesRes.error);
-      }
-
-      if (paymentsRes.error) {
-        console.error("Ödemeler yüklenemedi:", paymentsRes.error);
       }
 
       if (customersRes.error) {
@@ -71,10 +61,28 @@ export default function Home() {
         console.error("Ürünler yüklenemedi:", productsRes.error);
       }
 
-      setSales((salesRes.data as Sale[]) || []);
-      setPayments((paymentsRes.data as Payment[]) || []);
+      const activeSales = (salesRes.data as Sale[]) || [];
+      setSales(activeSales);
       setCustomerCount(customersRes.count || 0);
       setProductCount(productsRes.count || 0);
+
+      const saleIds = activeSales.map((sale) => sale.id);
+
+      if (saleIds.length === 0) {
+        setPayments([]);
+      } else {
+        const { data: paymentsData, error: paymentsError } = await supabase
+          .from("payments")
+          .select("id, sale_id, amount, created_at")
+          .in("sale_id", saleIds)
+          .order("created_at", { ascending: false });
+
+        if (paymentsError) {
+          console.error("Ödemeler yüklenemedi:", paymentsError);
+        }
+
+        setPayments((paymentsData as Payment[]) || []);
+      }
     } catch (error) {
       console.error("Ana sayfa verileri yüklenemedi:", error);
     } finally {
