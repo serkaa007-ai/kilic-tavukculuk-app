@@ -142,7 +142,9 @@ export default function MusterilerPage() {
   };
 
   const handleDeactivateCustomer = async (id: string) => {
-    const ok = window.confirm("Bu musteri pasife alinsin mi?");
+    const ok = window.confirm(
+      "Bu musteri pasife alinsin mi? Bu musteriye ait fisler ve satis kalemleri de pasife alinacak."
+    );
     if (!ok) return;
 
     setMessage("");
@@ -150,13 +152,12 @@ export default function MusterilerPage() {
     try {
       setLoading(true);
 
-      const { error } = await supabase
-        .from("customers")
-        .update({ active: false })
-        .eq("id", id);
+      const { error } = await supabase.rpc("deactivate_customer_with_sales", {
+        p_customer_id: id,
+      });
 
       if (error) {
-        setMessage("Musteri pasife alinamadi");
+        setMessage(error.message || "Musteri pasife alinamadi");
         return;
       }
 
@@ -164,7 +165,7 @@ export default function MusterilerPage() {
         cancelEdit();
       }
 
-      setMessage("Musteri pasife alindi");
+      setMessage("Musteri ve tum fisleri pasife alindi");
       await loadCustomers();
     } catch {
       setMessage("Bir hata olustu");
