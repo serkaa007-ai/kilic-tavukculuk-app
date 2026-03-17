@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import html2canvas from "html2canvas";
+import { toBlob } from "html-to-image";
 
 type SaleItem = {
   product_name: string | null;
@@ -123,66 +123,59 @@ export default function FisDetayPage() {
   const totalAmount = Number(sale?.total_amount || 0);
   const remainingAmount = Math.max(totalAmount - totalPaid, 0);
 
-  const generateReceiptImageFile = async () => {
-    if (!receiptRef.current || !sale) return null;
-
-    const canvas = await html2canvas(receiptRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      allowTaint: true,
-    });
-
-    const blob: Blob | null = await new Promise((resolve) => {
-      canvas.toBlob((b) => resolve(b), "image/png", 1);
-    });
-
-    if (!blob) return null;
-
-    return new File([blob], `fis-${sale.id}.png`, { type: "image/png" });
-  };
-
   const handleShareReceipt = async () => {
     try {
       setMessage("");
 
-      const imageFile = await generateReceiptImageFile();
+      if (!receiptRef.current || !sale) {
+        setMessage("Fiş bulunamadı");
+        return;
+      }
 
-      if (!imageFile) {
+      const blob = await toBlob(receiptRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: "#ffffff",
+      });
+
+      if (!blob) {
         setMessage("Fiş görseli oluşturulamadı");
         return;
       }
+
+      const file = new File([blob], `fis-${sale.id}.png`, {
+        type: "image/png",
+      });
 
       const nav = navigator as Navigator & {
         canShare?: (data?: ShareData) => boolean;
       };
 
-      const canNativeShare =
+      const canShareFile =
         typeof nav !== "undefined" &&
         typeof nav.share === "function" &&
         typeof nav.canShare === "function" &&
-        nav.canShare({ files: [imageFile] });
+        nav.canShare({ files: [file] });
 
-      if (canNativeShare) {
+      if (canShareFile) {
         await nav.share({
           title: "Satış Fişi",
-          text: `${sale?.customers?.name || "Müşteri"} için satış fişi`,
-          files: [imageFile],
+          text: `${sale.customers?.name || "Müşteri"} için satış fişi`,
+          files: [file],
         });
         return;
       }
 
-      const imageUrl = URL.createObjectURL(imageFile);
-      const link = document.createElement("a");
-      link.href = imageUrl;
-      link.download = imageFile.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(imageUrl);
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-      setMessage("Fiş görsel olarak indirildi. WhatsApp'tan görsel olarak gönderebilirsin.");
+      setMessage("Fiş görsel olarak indirildi.");
     } catch (error) {
       console.error("Fiş paylaşma hatası:", error);
       const errorMessage =
@@ -239,6 +232,7 @@ export default function FisDetayPage() {
         <div
           ref={receiptRef}
           className="bg-white rounded-2xl shadow p-6 print:shadow-none print:rounded-none"
+          style={{ backgroundColor: "#ffffff", color: "#000000" }}
         >
           <div className="text-center border-b pb-4">
             <div className="flex justify-center mb-3">
