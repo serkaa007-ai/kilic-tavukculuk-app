@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import LogoutButton from "@/components/logout-button";
 
 type Sale = {
   id: string;
@@ -124,25 +125,27 @@ export default function Home() {
     <main className="min-h-screen bg-black text-white">
       <div className="max-w-md mx-auto min-h-screen bg-zinc-950 border-x border-zinc-900 flex flex-col">
         <div className="px-5 pt-6 pb-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-16 w-16 rounded-2xl overflow-hidden bg-white/5 border border-zinc-800 flex items-center justify-center">
-                <Image
-                  src="/kilic-logo.png"
-                  alt="Kılıç Tavukçuluk Logo"
-                  width={64}
-                  height={64}
-                  className="object-contain"
-                />
-              </div>
+          <div className="flex justify-end mb-4">
+            <LogoutButton />
+          </div>
 
-              <div>
-                <p className="text-zinc-400 text-sm">Hoş geldin</p>
-                <h1 className="text-3xl font-bold tracking-tight text-red-500">
-                  Kılıç Tavukçuluk
-                </h1>
-                <p className="text-zinc-300 mt-1">Satış Takip Sistemi</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="h-16 w-16 rounded-2xl overflow-hidden bg-white/5 border border-zinc-800 flex items-center justify-center">
+              <Image
+                src="/kilic-logo.png"
+                alt="Kılıç Tavukçuluk Logo"
+                width={64}
+                height={64}
+                className="object-contain"
+              />
+            </div>
+
+            <div>
+              <p className="text-zinc-400 text-sm">Hoş geldin</p>
+              <h1 className="text-3xl font-bold tracking-tight text-red-500">
+                Kılıç Tavukçuluk
+              </h1>
+              <p className="text-zinc-300 mt-1">Satış Takip Sistemi</p>
             </div>
           </div>
 
