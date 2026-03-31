@@ -22,6 +22,8 @@ type Payment = {
 type Sale = {
   id: string;
   total_amount: number | null;
+  old_balance: number | null;
+  general_total: number | null;
   payment_status: string | null;
   created_at: string;
   customers: {
@@ -56,6 +58,8 @@ export default function FisDetayPage() {
           .select(`
             id,
             total_amount,
+            old_balance,
+            general_total,
             payment_status,
             created_at,
             customers (
@@ -119,8 +123,10 @@ export default function FisDetayPage() {
     }, 0);
   }, [payments]);
 
-  const totalAmount = Number(sale?.total_amount || 0);
-  const remainingAmount = Math.max(totalAmount - totalPaid, 0);
+  const saleTotal = Number(sale?.total_amount || 0);
+  const oldBalance = Number(sale?.old_balance || 0);
+  const generalTotal = Number(sale?.general_total || saleTotal + oldBalance);
+  const remainingAmount = Math.max(generalTotal - totalPaid, 0);
 
   const handleShareReceipt = async () => {
     try {
@@ -234,8 +240,7 @@ export default function FisDetayPage() {
           style={{
             backgroundColor: "#ffffff",
             color: "#000000",
-            fontFamily:
-              'Arial, Helvetica, "Segoe UI", sans-serif',
+            fontFamily: 'Arial, Helvetica, "Segoe UI", sans-serif',
           }}
         >
           <div
@@ -347,9 +352,25 @@ export default function FisDetayPage() {
           <div className="mt-6 flex justify-end">
             <div className="w-full max-w-sm space-y-3">
               <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600">Toplam</span>
+                <span className="font-semibold">
+                  {formatMoney(saleTotal)} TL
+                </span>
+              </div>
+
+              {oldBalance > 0 && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-zinc-600">Eski Bakiye</span>
+                  <span className="font-semibold text-yellow-600">
+                    {formatMoney(oldBalance)} TL
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-600">Genel Toplam</span>
                 <span className="font-semibold">
-                  {formatMoney(totalAmount)} TL
+                  {formatMoney(generalTotal)} TL
                 </span>
               </div>
 
