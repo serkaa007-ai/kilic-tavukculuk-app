@@ -23,6 +23,7 @@ type Sale = {
   id: string;
   total_amount: number | null;
   old_balance: number | null;
+  last_purchase_amount: number | null;
   general_total: number | null;
   payment_status: string | null;
   created_at: string;
@@ -59,6 +60,7 @@ export default function FisDetayPage() {
             id,
             total_amount,
             old_balance,
+            last_purchase_amount,
             general_total,
             payment_status,
             created_at,
@@ -123,10 +125,14 @@ export default function FisDetayPage() {
     }, 0);
   }, [payments]);
 
-  const saleTotal = Number(sale?.total_amount || 0);
+  const totalAmount = Number(sale?.total_amount || 0);
   const oldBalance = Number(sale?.old_balance || 0);
-  const generalTotal = Number(sale?.general_total || saleTotal + oldBalance);
-  const remainingAmount = Math.max(generalTotal - totalPaid, 0);
+  const lastPurchaseAmount = Number(sale?.last_purchase_amount || 0);
+  const generalTotal = Number(sale?.general_total || 0);
+
+  // Doğru kalan borç hesabı:
+  // Toplam birikmiş ürün tutarı - toplam tahsilat
+  const remainingAmount = Math.max(totalAmount - totalPaid, 0);
 
   const handleShareReceipt = async () => {
     try {
@@ -352,20 +358,18 @@ export default function FisDetayPage() {
           <div className="mt-6 flex justify-end">
             <div className="w-full max-w-sm space-y-3">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600">Toplam</span>
-                <span className="font-semibold">
-                  {formatMoney(saleTotal)} TL
+                <span className="text-zinc-600">Önceki Borç</span>
+                <span className="font-semibold text-yellow-600">
+                  {formatMoney(oldBalance)} TL
                 </span>
               </div>
 
-              {oldBalance > 0 && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-600">Eski Bakiye</span>
-                  <span className="font-semibold text-yellow-600">
-                    {formatMoney(oldBalance)} TL
-                  </span>
-                </div>
-              )}
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-zinc-600">Bu Alışveriş</span>
+                <span className="font-semibold text-blue-600">
+                  {formatMoney(lastPurchaseAmount)} TL
+                </span>
+              </div>
 
               <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-600">Genel Toplam</span>
@@ -375,7 +379,7 @@ export default function FisDetayPage() {
               </div>
 
               <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600">Ödenen Tutar</span>
+                <span className="text-zinc-600">Toplam Tahsilat</span>
                 <span className="font-semibold text-green-600">
                   {formatMoney(totalPaid)} TL
                 </span>
